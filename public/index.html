@@ -3,379 +3,498 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>🧩 Jigsaw Together — Play with your people 💞</title>
+<title>Jigsaw — solve puzzles together</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
   :root {
-    --pink:#ff6b9d; --purple:#c084fc; --blue:#60a5fa; --green:#34d399;
-    --bg0:#0f0c29; --bg1:#302b63; --bg2:#24243e;
-    --glass: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.15);
+    --bg:        #0b0d12;
+    --bg-elev:   #13161d;
+    --bg-elev-2: #191d27;
+    --border:    #232733;
+    --border-strong: #2d3240;
+    --text:      #e7e9ee;
+    --text-dim:  #8a91a2;
+    --text-mute: #5c6273;
+    --accent:    #f59e0b;      /* warm amber */
+    --accent-2:  #fbbf24;
+    --danger:    #ef4444;
+    --success:   #22c55e;
+    --info:      #3b82f6;
+    --radius-sm: 6px;
+    --radius:    10px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --shadow:    0 4px 12px rgba(0,0,0,.35);
+    --shadow-lg: 0 20px 50px rgba(0,0,0,.5);
   }
-  html, body { height: 100%; overflow: hidden; }
+
+  html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); }
   body {
-    font-family: 'Nunito', sans-serif; color: #fff;
-    background: linear-gradient(135deg, var(--bg0), var(--bg1), var(--bg2));
-    background-size: 400% 400%; animation: bgShift 18s ease infinite;
-  }
-  @keyframes bgShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-
-  /* Floating hearts */
-  .hearts { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-  .hearts span { position:absolute; bottom:-30px; font-size:22px; opacity:.35; animation: rise linear infinite; }
-  @keyframes rise {
-    0%{transform:translateY(0) rotate(0);opacity:0}
-    10%{opacity:.4}
-    100%{transform:translateY(-110vh) rotate(720deg);opacity:0}
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  .app { position: relative; z-index: 1; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  /* Subtle noise + soft gradient backdrop */
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(1200px 700px at 10% -10%, rgba(245,158,11,0.06), transparent 60%),
+      radial-gradient(900px 600px at 110% 110%, rgba(59,130,246,0.05), transparent 60%);
+  }
 
-  /* ----- Lobby ----- */
+  button { font-family:inherit; cursor:pointer; }
+  input, button, select { font-family:inherit; font-size:inherit; }
+  ::selection { background: rgba(245,158,11,.3); }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--border-strong); }
+  ::-webkit-scrollbar-track { background:transparent; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:40px; padding:0 16px; border-radius:var(--radius); border:1px solid var(--border);
+    background:var(--bg-elev); color:var(--text); font-weight:500; font-size:13.5px;
+    transition: background .15s, border-color .15s, transform .05s;
+    white-space:nowrap;
+  }
+  .btn:hover { background:var(--bg-elev-2); border-color:var(--border-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }
+  .btn.primary {
+    background:var(--accent); color:#1a1200; border-color:transparent; font-weight:600;
+    box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 4px 14px rgba(245,158,11,.2);
+  }
+  .btn.primary:hover { background:var(--accent-2); }
+  .btn.ghost { background:transparent; }
+  .btn.block { width:100%; }
+  .btn.icon { width:36px; height:36px; padding:0; border-radius:var(--radius-sm); }
+
+  .btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .btn-row > * { flex:1; }
+  .btn-row > *.keep-size { flex:0 0 auto; }
+
+  /* ---------- Inputs ---------- */
+  .field { margin-top:16px; }
+  .field-label { display:block; font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .input {
+    width:100%; height:40px; padding:0 12px; border-radius:var(--radius-sm);
+    background:var(--bg-elev); border:1px solid var(--border); color:var(--text);
+    outline:none; transition: border-color .15s, box-shadow .15s;
+  }
+  .input:focus { border-color:var(--accent); box-shadow: 0 0 0 3px rgba(245,158,11,.12); }
+  .input::placeholder { color:var(--text-mute); }
+  .input.mono { font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:3px; text-align:center; font-size:18px; text-transform:uppercase; }
+
+  /* ---------- App shell ---------- */
+  .app { position:relative; z-index:1; height:100vh; width:100vw; display:flex; align-items:center; justify-content:center; padding:20px; }
+
+  /* ---------- Card / Lobby ---------- */
   .lobby {
-    width: 100%; max-width: 720px;
-    background: var(--glass); border: 1px solid var(--glass-border);
-    backdrop-filter: blur(20px); border-radius: 28px;
-    padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
-    max-height: calc(100vh - 24px); overflow-y: auto;
+    width:100%; max-width:460px; background:var(--bg-elev); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow-lg);
+    max-height:calc(100vh - 40px); overflow-y:auto;
   }
-  .logo {
-    font-family: 'Fredoka One', cursive; font-size: clamp(2em, 6vw, 3.2em);
-    background: linear-gradient(45deg, var(--pink), var(--purple), var(--blue), var(--green));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    text-align: center; animation: pulseGlow 2.2s ease-in-out infinite;
+  .brand { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .brand-mark {
+    width:32px; height:32px; border-radius:8px; display:grid; place-items:center;
+    background: linear-gradient(135deg, var(--accent), #d97706);
+    color:#1a1200; font-weight:700; font-size:16px;
   }
-  @keyframes pulseGlow { 0%,100%{filter:drop-shadow(0 0 8px rgba(192,132,252,.4));transform:scale(1)} 50%{filter:drop-shadow(0 0 22px rgba(192,132,252,.75));transform:scale(1.02)} }
-  .tagline { text-align:center; color:#d8b4fe; margin: 6px 0 22px; font-weight:600; }
+  .brand-name { font-size:18px; font-weight:600; letter-spacing:-.01em; }
+  .brand-sub { font-size:13px; color:var(--text-dim); margin: 4px 0 28px 42px; }
 
-  .tabs { display:flex; gap:8px; margin-bottom:18px; }
-  .tab { flex:1; padding:12px; text-align:center; background: rgba(255,255,255,.06); border:1px solid var(--glass-border); border-radius: 14px; cursor:pointer; font-weight:700; transition:all .2s; }
-  .tab.active { background: linear-gradient(45deg, rgba(255,107,157,.35), rgba(192,132,252,.35)); border-color: var(--purple); }
+  /* Segmented tabs (Create / Join) */
+  .seg {
+    display:grid; grid-template-columns:1fr 1fr; gap:4px;
+    background:var(--bg); padding:4px; border-radius:var(--radius); border:1px solid var(--border);
+    margin-bottom:20px;
+  }
+  .seg button {
+    height:34px; border:none; background:transparent; color:var(--text-dim); font-weight:500;
+    border-radius:calc(var(--radius) - 3px); font-size:13px; transition:all .15s;
+  }
+  .seg button.active { background:var(--bg-elev-2); color:var(--text); box-shadow:var(--shadow-sm); }
 
   .panel { display:none; }
   .panel.active { display:block; }
 
-  label { display:block; font-size:.85rem; color:#c4b5fd; margin: 12px 0 6px; font-weight:600; }
-  input[type=text], input[type=file] {
-    width:100%; padding:12px 14px; border-radius:12px;
-    background: rgba(255,255,255,.07); border:1px solid var(--glass-border);
-    color:#fff; font-family:inherit; font-size:1rem; outline:none;
+  /* Difficulty grid */
+  .opts { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:6px; }
+  .opt {
+    padding:12px 8px; text-align:center; background:var(--bg); border:1px solid var(--border);
+    border-radius:var(--radius-sm); cursor:pointer; transition:all .15s;
   }
-  input[type=text]:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(192,132,252,.2); }
+  .opt:hover { border-color:var(--border-strong); background:var(--bg-elev-2); }
+  .opt.active { border-color:var(--accent); background:rgba(245,158,11,.08); }
+  .opt .t { font-weight:600; font-size:13px; }
+  .opt .s { font-size:11px; color:var(--text-mute); margin-top:2px; }
 
-  .btn {
-    display:inline-flex; align-items:center; justify-content:center; gap:8px;
-    padding: 12px 18px; border-radius:14px; border:none; cursor:pointer;
-    font-family:inherit; font-weight:700; font-size:1rem; color:#fff;
-    background: linear-gradient(45deg, var(--pink), var(--purple));
-    transition: transform .15s, box-shadow .2s, opacity .2s;
-    box-shadow: 0 8px 24px rgba(192,132,252,.35);
+  /* Sample images */
+  .samples { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
+  .sample {
+    aspect-ratio:1; border-radius:var(--radius-sm); overflow:hidden; cursor:pointer;
+    border:2px solid transparent; transition:all .15s; background:var(--bg);
   }
-  .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(192,132,252,.5); }
-  .btn:active { transform: translateY(0); }
-  .btn:disabled { opacity:.5; cursor:not-allowed; }
-  .btn.ghost { background: rgba(255,255,255,.08); box-shadow:none; border:1px solid var(--glass-border); }
-  .btn.green { background: linear-gradient(45deg,#34d399,#10b981); box-shadow:0 8px 24px rgba(52,211,153,.35); }
-  .btn.full { width:100%; }
-  .btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .sample img { width:100%; height:100%; object-fit:cover; display:block; }
+  .sample:hover { border-color:var(--border-strong); }
+  .sample.active { border-color:var(--accent); }
 
-  .difficulty { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-top:6px; }
-  .diff {
-    padding: 14px 6px; text-align:center; background:rgba(255,255,255,.06); border:1px solid var(--glass-border);
-    border-radius: 12px; cursor:pointer; transition: all .2s; font-weight:700;
+  /* Upload zone */
+  .upzone {
+    margin-top:6px; border:1.5px dashed var(--border-strong); border-radius:var(--radius);
+    padding:22px; text-align:center; cursor:pointer; background:var(--bg); transition:all .15s;
   }
-  .diff small { display:block; font-size:.72rem; color:#c4b5fd; font-weight:600; margin-top:2px; }
-  .diff.active { background: linear-gradient(45deg, rgba(96,165,250,.35), rgba(192,132,252,.35)); border-color: var(--blue); transform: scale(1.04); }
+  .upzone:hover { border-color:var(--accent); background:rgba(245,158,11,.04); }
+  .upzone .ic { font-size:22px; margin-bottom:6px; opacity:.8; }
+  .upzone .t { font-weight:500; font-size:13px; }
+  .upzone .s { font-size:12px; color:var(--text-mute); margin-top:2px; }
+  .preview { margin-top:12px; text-align:center; }
+  .preview img { max-width:100%; max-height:200px; border-radius:var(--radius-sm); border:1px solid var(--border); display:block; margin:0 auto; }
 
-  .upload-zone {
-    border: 3px dashed rgba(192,132,252,.5); border-radius:18px; padding: 26px; text-align:center;
-    background: rgba(255,255,255,.04); cursor:pointer; transition: all .2s; margin-top:6px;
+  /* ---------- In-lobby ---------- */
+  .code-block {
+    margin-top:8px; padding:16px; border-radius:var(--radius); background:var(--bg);
+    border:1px solid var(--border); text-align:center;
   }
-  .upload-zone:hover { border-color: var(--purple); background: rgba(192,132,252,.08); }
-  .upload-zone .icon { font-size: 2.5em; margin-bottom:6px; }
-  .preview-wrap { margin-top:14px; text-align:center; }
-  .preview-wrap img { max-width:100%; max-height: 260px; border-radius:14px; border:2px solid var(--glass-border); }
+  .code {
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:30px; font-weight:600;
+    letter-spacing:8px; color:var(--accent);
+  }
+  .code-hint { font-size:12px; color:var(--text-mute); margin-top:6px; }
+  .link {
+    margin-top:8px; padding:8px 10px; background:var(--bg-elev-2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); font-family:'JetBrains Mono', ui-monospace, monospace;
+    font-size:11.5px; color:var(--text-dim); word-break:break-all; user-select:all;
+  }
 
-  .room-code {
-    font-family: 'Fredoka One', cursive; font-size: 2.6rem; letter-spacing: 8px;
-    text-align:center; padding: 14px; border-radius:14px;
-    background: linear-gradient(45deg, rgba(255,107,157,.2), rgba(192,132,252,.2));
-    border: 2px dashed var(--purple); margin: 10px 0 6px; user-select:all;
-  }
-  .share-link {
-    padding:10px 12px; background: rgba(0,0,0,.3); border-radius:10px; font-family: monospace; font-size:.85rem;
-    word-break:break-all; border:1px solid var(--glass-border); margin-top:8px;
-  }
-  .players { margin-top:14px; }
+  .section-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin:20px 0 8px; }
+  .player-list { display:flex; flex-direction:column; gap:6px; }
   .player {
-    display:flex; align-items:center; gap:10px; padding:10px 12px; background: rgba(255,255,255,.06);
-    border-radius:12px; margin-bottom:6px; border-left:4px solid var(--purple);
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm);
+    background:var(--bg); border:1px solid var(--border);
   }
-  .player .avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.3em; flex-shrink:0; }
-  .player .name { font-weight:700; flex:1; }
-  .player .you { font-size:.7rem; background: var(--purple); padding:2px 8px; border-radius:10px; }
-  .player .host { font-size:.7rem; background: var(--pink); padding:2px 8px; border-radius:10px; }
-  .color-pick { display:flex; gap:6px; margin-top:8px; }
-  .color-dot { width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all .15s; }
-  .color-dot.sel { border-color:#fff; transform:scale(1.15); }
+  .avatar { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; font-size:14px; }
+  .pname { font-weight:500; font-size:13.5px; flex:1; }
+  .badge { font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
+  .badge.you { background:var(--bg-elev-2); color:var(--text-dim); border:1px solid var(--border); }
+  .badge.host { background:rgba(245,158,11,.15); color:var(--accent); border:1px solid rgba(245,158,11,.25); }
+  .colors { display:flex; gap:8px; margin-top:6px; }
+  .colordot { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:transform .1s; }
+  .colordot.active { border-color:#fff; transform:scale(1.12); }
 
-  .samples { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:8px; }
-  .sample { border-radius:10px; aspect-ratio:1; cursor:pointer; overflow:hidden; border:2px solid transparent; transition:all .2s; }
-  .sample.sel { border-color: var(--purple); transform: scale(1.03); }
-  .sample canvas { width:100%; height:100%; display:block; }
+  .guest-wait {
+    margin-top:20px; text-align:center; padding:24px 16px; border-radius:var(--radius);
+    background:var(--bg); border:1px solid var(--border);
+  }
+  .guest-wait .spin {
+    width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent);
+    border-radius:50%; margin:0 auto 10px; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .guest-wait .t { font-weight:600; font-size:14px; }
+  .guest-wait .s { font-size:12px; color:var(--text-mute); margin-top:4px; }
 
-  /* ----- Game ----- */
-  .game-wrap { position: fixed; inset:0; display:none; flex-direction:column; z-index: 5; }
-  .game-wrap.active { display:flex; }
+  /* ---------- Game ---------- */
+  .game { position:fixed; inset:0; display:none; flex-direction:column; z-index:5; background:var(--bg); }
+  .game.active { display:flex; }
 
   .topbar {
-    display:flex; align-items:center; gap:10px; padding: 10px 14px;
-    background: rgba(15,12,41,.7); backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--glass-border); flex-wrap:wrap;
+    display:flex; align-items:center; gap:8px; height:48px; padding:0 12px;
+    background:var(--bg-elev); border-bottom:1px solid var(--border);
   }
+  .logo-mini {
+    display:flex; align-items:center; gap:8px; font-weight:600; font-size:13px; padding-right:8px;
+    border-right:1px solid var(--border); margin-right:4px; height:28px;
+  }
+  .logo-mini .dot { width:6px; height:6px; background:var(--accent); border-radius:50%; }
   .stat {
-    background: rgba(255,255,255,.06); padding:6px 12px; border-radius:10px; font-weight:700; font-size:.9rem;
-    display:flex; align-items:center; gap:6px;
+    display:flex; align-items:center; gap:6px; height:28px; padding:0 10px; font-size:12.5px;
+    color:var(--text-dim); background:var(--bg); border:1px solid var(--border);
+    border-radius:var(--radius-sm); font-variant-numeric: tabular-nums;
   }
+  .stat b { color:var(--text); font-weight:600; }
+  .stat.code { font-family:'JetBrains Mono', monospace; letter-spacing:1.5px; background:var(--bg-elev-2); color:var(--text); }
   .spacer { flex:1; }
-  .icon-btn {
-    width:40px; height:40px; border-radius:10px; background: rgba(255,255,255,.08); border:1px solid var(--glass-border);
-    color:#fff; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
-  }
-  .icon-btn:hover { background: rgba(255,255,255,.15); }
+  .topbar .btn.icon { width:32px; height:32px; border-radius:var(--radius-sm); background:transparent; border-color:transparent; color:var(--text-dim); font-size:15px; }
+  .topbar .btn.icon:hover { background:var(--bg-elev-2); color:var(--text); border-color:var(--border); }
+
+  .progress { height:2px; background:var(--bg); }
+  .progress > div { height:100%; width:0%; background:var(--accent); transition:width .3s ease; }
 
   .play-area { flex:1; position:relative; overflow:hidden; display:flex; }
-  .canvas-wrap { flex:1; position:relative; overflow:hidden; background:
-    radial-gradient(ellipse at top, rgba(192,132,252,.12), transparent 60%),
-    radial-gradient(ellipse at bottom, rgba(255,107,157,.12), transparent 60%),
-    rgba(15,12,41,.5);
+  .canvas-area { flex:1; position:relative; overflow:hidden; background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.008) 0 2px, transparent 2px 18px),
+      var(--bg);
   }
-  #board { position:absolute; inset:0; width:100%; height:100%; cursor: grab; touch-action:none; }
-  #board.dragging { cursor: grabbing; }
-  #board.panning { cursor: grabbing; }
+  #board { position:absolute; inset:0; width:100%; height:100%; cursor:grab; touch-action:none; display:block; }
+  #board.dragging, #board.panning { cursor:grabbing; }
 
+  .tray-hint {
+    position:absolute; top:10px; right:16px; font-size:11px; color:var(--text-mute);
+    font-weight:500; text-transform:uppercase; letter-spacing:.08em; pointer-events:none;
+  }
+
+  /* Side panel */
   .side {
-    width: 240px; background: rgba(15,12,41,.7); backdrop-filter: blur(14px);
-    border-left:1px solid var(--glass-border); display:flex; flex-direction:column;
-    transition: transform .25s;
+    width:280px; background:var(--bg-elev); border-left:1px solid var(--border);
+    display:flex; flex-direction:column; transition:transform .2s ease;
   }
-  @media (max-width: 760px) {
-    .side { position:absolute; right:0; top:0; bottom:0; width: 260px; transform: translateX(100%); z-index:20; }
-    .side.open { transform: translateX(0); }
+  @media (max-width: 760px){
+    .side { position:absolute; right:0; top:0; bottom:0; width:300px; transform:translateX(100%); z-index:30; box-shadow:var(--shadow-lg); }
+    .side.open { transform:translateX(0); }
   }
-  .side h3 { padding: 10px 14px; font-size:.85rem; color:#c4b5fd; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--glass-border); }
-  .chat-box { flex:1; overflow-y:auto; padding: 10px; display:flex; flex-direction:column; gap:6px; }
-  .chat-msg { font-size:.85rem; line-height:1.35; word-wrap:break-word; }
-  .chat-msg .who { font-weight:800; }
-  .chat-msg.system { color:#c4b5fd; font-style:italic; font-size:.8rem; text-align:center; }
-  .chat-input { display:flex; gap:6px; padding:8px; border-top:1px solid var(--glass-border); }
-  .chat-input input { flex:1; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.08); border:1px solid var(--glass-border); color:#fff; outline:none; font-family:inherit; }
-  .chat-input button { width:36px; height:36px; border-radius:10px; border:none; background: linear-gradient(45deg,var(--pink),var(--purple)); color:#fff; cursor:pointer; font-size:1.1rem; }
+  .side-h { padding:12px 14px; border-bottom:1px solid var(--border); }
+  .side-h .t { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin-bottom:8px; }
+  .plist { display:flex; flex-direction:column; gap:4px; }
+  .prow {
+    display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-sm);
+    background:var(--bg);
+  }
+  .pav { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:12px; flex-shrink:0; }
+  .pnm { font-size:12.5px; font-weight:500; flex:1; }
+  .pcnt { font-size:11px; color:var(--text-mute); font-variant-numeric:tabular-nums; }
 
-  .player-list-side { padding: 8px; display:flex; flex-direction:column; gap:6px; max-height: 220px; overflow-y:auto; border-bottom:1px solid var(--glass-border); }
-  .p-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background: rgba(255,255,255,.05); font-size:.85rem; }
-  .p-row .av { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.95rem; }
-  .p-row .nm { flex:1; font-weight:700; }
-  .p-row .cnt { font-size:.75rem; color:#c4b5fd; }
-
-  .progress { height: 6px; background: rgba(255,255,255,.08); border-radius: 4px; overflow:hidden; margin: 4px 14px 10px; }
-  .progress > div { height:100%; background: linear-gradient(90deg, var(--pink), var(--purple), var(--blue), var(--green)); width:0%; transition: width .3s; }
+  .chat-box { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .msg { font-size:12.5px; line-height:1.45; word-wrap:break-word; }
+  .msg .who { font-weight:600; margin-right:4px; }
+  .msg.sys { color:var(--text-mute); font-size:11.5px; text-align:center; padding:4px 0; }
+  .chat-in { display:flex; gap:6px; padding:10px; border-top:1px solid var(--border); }
+  .chat-in input { flex:1; height:34px; padding:0 10px; border-radius:var(--radius-sm); background:var(--bg); border:1px solid var(--border); color:var(--text); outline:none; font-size:13px; }
+  .chat-in input:focus { border-color:var(--accent); }
+  .chat-in button {
+    width:34px; height:34px; border-radius:var(--radius-sm); border:none;
+    background:var(--accent); color:#1a1200; font-weight:700; cursor:pointer;
+  }
 
   /* Reference overlay */
   .ref-overlay {
-    position:fixed; inset:0; background: rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index: 50;
-    padding: 20px;
+    position:fixed; inset:0; background:rgba(4,5,9,.92); backdrop-filter:blur(8px);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:40px;
   }
   .ref-overlay.show { display:flex; }
-  .ref-overlay img { max-width:90%; max-height:90%; border-radius:14px; border:3px solid var(--purple); box-shadow:0 0 80px rgba(192,132,252,.5); }
-  .ref-overlay .close { position:absolute; top:16px; right:20px; font-size:2rem; cursor:pointer; }
-  .ref-overlay .who { position:absolute; bottom:20px; color:#c4b5fd; }
+  .ref-overlay img { max-width:100%; max-height:100%; border-radius:var(--radius); box-shadow:0 30px 80px rgba(0,0,0,.7); border:1px solid var(--border); }
+  .ref-close {
+    position:absolute; top:18px; right:22px; width:36px; height:36px; border-radius:50%;
+    background:var(--bg-elev); border:1px solid var(--border); color:var(--text); cursor:pointer; font-size:16px;
+  }
+  .ref-who { position:absolute; bottom:22px; font-size:12px; color:var(--text-dim); }
 
   /* Win modal */
+  .modal-bg {
+    position:fixed; inset:0; background:rgba(4,5,9,.7); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:60; padding:20px;
+  }
+  .modal-bg.show { display:flex; }
   .modal {
-    position:fixed; inset:0; background: rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index: 60; padding: 20px;
+    width:100%; max-width:380px; background:var(--bg-elev); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:28px; text-align:center; box-shadow:var(--shadow-lg);
   }
-  .modal.show { display:flex; }
-  .modal-card {
-    background: linear-gradient(135deg, #2a1a4a, #4a1f5a); padding: 30px; border-radius:24px; text-align:center;
-    border: 2px solid var(--purple); max-width: 420px; width:100%; box-shadow: 0 30px 80px rgba(0,0,0,.6);
-  }
-  .modal-card h2 { font-family:'Fredoka One',cursive; font-size:2.4rem; margin-bottom:10px;
-    background: linear-gradient(45deg,var(--pink),var(--purple),var(--blue),var(--green));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .modal-card p { margin-bottom:18px; color:#d8b4fe; }
+  .modal h2 { font-size:22px; font-weight:600; letter-spacing:-.01em; margin-bottom:6px; }
+  .modal p { color:var(--text-dim); font-size:13.5px; margin-bottom:18px; }
+  .modal .time { font-size:13px; color:var(--text-dim); margin-bottom:20px; }
+  .modal .time b { color:var(--text); font-variant-numeric:tabular-nums; }
 
+  /* Toast */
   .toast {
-    position:fixed; bottom: 20px; left:50%; transform: translateX(-50%) translateY(100px);
-    background: rgba(0,0,0,.85); color:#fff; padding: 10px 18px; border-radius:12px; z-index:100;
-    border:1px solid var(--glass-border); transition: transform .3s; font-weight:600;
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+    background:var(--bg-elev-2); color:var(--text); padding:10px 16px; border-radius:var(--radius);
+    border:1px solid var(--border); font-size:13px; font-weight:500; z-index:100;
+    box-shadow:var(--shadow); transition:transform .25s cubic-bezier(.2,.8,.2,1);
   }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-
-  .cursors { position:absolute; inset:0; pointer-events:none; }
-  .cursors .cur {
-    position:absolute; transform: translate(-2px,-2px); transition: left .08s linear, top .08s linear;
-    font-size: 1.6rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); z-index: 9999;
-  }
-  .cursors .cur .lbl {
-    position:absolute; left: 14px; top: 14px; padding: 2px 8px; border-radius:10px; font-size:.7rem; font-weight:800;
-    color:#fff; white-space:nowrap;
-  }
+  .toast.show { transform:translateX(-50%) translateY(0); }
 
   .hidden { display:none !important; }
 
-  @media (max-width: 600px) {
-    .lobby { padding: 18px; border-radius: 20px; }
-    .difficulty { grid-template-columns: repeat(2,1fr); }
-    .topbar .stat { padding:4px 8px; font-size:.78rem; }
+  /* Mobile */
+  @media (max-width: 520px){
+    .lobby { padding:22px; }
+    .code { font-size:24px; letter-spacing:6px; }
+    .topbar { padding:0 8px; gap:4px; }
+    .stat { padding:0 7px; font-size:11.5px; }
+    .brand-sub { margin-left:0; }
   }
 </style>
 </head>
 <body>
 
-<div class="hearts" id="hearts"></div>
-
 <div class="app" id="app">
 
   <!-- ============== LOBBY ============== -->
   <div class="lobby" id="lobby">
-    <div class="logo">🧩 Jigsaw Together</div>
-    <div class="tagline">Piece together memories with your favorite people 💞</div>
+    <div class="brand">
+      <div class="brand-mark">J</div>
+      <div class="brand-name">Jigsaw</div>
+    </div>
+    <div class="brand-sub">Solve puzzles together, in real time.</div>
 
-    <div id="preTabs">
-      <div class="tabs">
-        <div class="tab active" data-tab="create">✨ Create Room</div>
-        <div class="tab" data-tab="join">🎟️ Join Room</div>
+    <div id="preJoin">
+      <div class="seg">
+        <button class="active" data-tab="create">New room</button>
+        <button data-tab="join">Join room</button>
       </div>
 
       <div class="panel active" id="panel-create">
-        <label>Your Name</label>
-        <input type="text" id="hostName" placeholder="e.g. Samprit" maxlength="16" />
-
-        <label>Choose Difficulty</label>
-        <div class="difficulty" id="diffPick">
-          <div class="diff" data-n="3">🌸 Easy<small>3×3 · 9 pcs</small></div>
-          <div class="diff active" data-n="4">⭐ Medium<small>4×4 · 16 pcs</small></div>
-          <div class="diff" data-n="5">🔥 Hard<small>5×5 · 25 pcs</small></div>
-          <div class="diff" data-n="6">💀 Expert<small>6×6 · 36 pcs</small></div>
+        <div class="field">
+          <label class="field-label">Your name</label>
+          <input type="text" class="input" id="hostName" placeholder="e.g. Samprit" maxlength="16" />
         </div>
 
-        <label>Pick a Sample Photo (or upload your own)</label>
-        <div class="samples" id="samples"></div>
-
-        <label>Upload Your Photo 📸</label>
-        <div class="upload-zone" id="uploadZone">
-          <div class="icon">📷</div>
-          <div><strong>Tap to upload</strong> or drag &amp; drop</div>
-          <div style="font-size:.85rem;color:#c4b5fd;margin-top:4px;">Selfies, memories, anything you both love!</div>
-          <input type="file" id="fileInput" accept="image/*" hidden />
+        <div class="field">
+          <label class="field-label">Difficulty</label>
+          <div class="opts" id="diffPick">
+            <div class="opt" data-n="3"><div class="t">Easy</div><div class="s">3×3 · 9</div></div>
+            <div class="opt active" data-n="4"><div class="t">Medium</div><div class="s">4×4 · 16</div></div>
+            <div class="opt" data-n="5"><div class="t">Hard</div><div class="s">5×5 · 25</div></div>
+            <div class="opt" data-n="6"><div class="t">Expert</div><div class="s">6×6 · 36</div></div>
+          </div>
         </div>
-        <div class="preview-wrap" id="previewWrap" style="display:none">
-          <img id="previewImg" alt="preview" />
+
+        <div class="field">
+          <label class="field-label">Choose a photo</label>
+          <div class="samples" id="samples"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Or upload your own</label>
+          <div class="upzone" id="uploadZone">
+            <div class="ic">📷</div>
+            <div class="t">Click or drop an image</div>
+            <div class="s">JPG, PNG up to 6 MB</div>
+            <input type="file" id="fileInput" accept="image/*" hidden />
+          </div>
+          <div class="preview" id="previewWrap" style="display:none"><img id="previewImg" alt="preview" /></div>
         </div>
 
         <div class="btn-row">
-          <button class="btn full" id="createBtn">💖 Create Room &amp; Invite</button>
+          <button class="btn primary block" id="createBtn">Create room</button>
         </div>
       </div>
 
       <div class="panel" id="panel-join">
-        <label>Your Name</label>
-        <input type="text" id="joinName" placeholder="e.g. Babe 💖" maxlength="16" />
-
-        <label>Room Code</label>
-        <input type="text" id="joinCode" placeholder="e.g. A1B2C" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-family:'Fredoka One',cursive;font-size:1.4rem;" />
-
+        <div class="field">
+          <label class="field-label">Your name</label>
+          <input type="text" class="input" id="joinName" placeholder="e.g. Alex" maxlength="16" />
+        </div>
+        <div class="field">
+          <label class="field-label">Room code</label>
+          <input type="text" class="input mono" id="joinCode" placeholder="ABCDE" maxlength="6" />
+        </div>
         <div class="btn-row">
-          <button class="btn full green" id="joinBtn">🚪 Join the Puzzle</button>
+          <button class="btn primary block" id="joinBtn">Join room</button>
         </div>
       </div>
     </div>
 
-    <!-- Lobby waiting room (shown after creating/joining) -->
-    <div id="inLobby" style="display:none">
-      <div class="room-code" id="roomCode">ABCDE</div>
-      <div class="share-link" id="shareLink">—</div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn ghost" id="copyLinkBtn">📋 Copy Invite Link</button>
+    <!-- Waiting room -->
+    <div id="inLobby" class="hidden">
+      <div class="code-block">
+        <div class="code" id="roomCode">ABCDE</div>
+        <div class="code-hint">Share this code with the other players</div>
+      </div>
+      <div class="link" id="shareLink">—</div>
+      <div class="btn-row">
+        <button class="btn ghost keep-size" id="copyLinkBtn" style="flex:1">Copy invite link</button>
       </div>
 
-      <label>Your Name</label>
-      <input type="text" id="myName" maxlength="16" />
+      <div class="field">
+        <label class="field-label">Your name</label>
+        <input type="text" class="input" id="myName" maxlength="16" />
+      </div>
 
-      <label>Pick Your Color</label>
-      <div class="color-pick" id="colorPick"></div>
+      <div class="field">
+        <label class="field-label">Your color</label>
+        <div class="colors" id="colorPick"></div>
+      </div>
 
-      <label style="margin-top:16px">People in Room (<span id="playerCount">1</span>/6)</label>
-      <div class="players" id="playersList"></div>
+      <div class="section-title">Players · <span id="playerCount">1</span>/6</div>
+      <div class="player-list" id="playersList"></div>
 
-      <div id="hostControls" style="display:none">
-        <label>Difficulty</label>
-        <div class="difficulty" id="diffPick2">
-          <div class="diff" data-n="3">🌸 Easy<small>9 pcs</small></div>
-          <div class="diff active" data-n="4">⭐ Medium<small>16 pcs</small></div>
-          <div class="diff" data-n="5">🔥 Hard<small>25 pcs</small></div>
-          <div class="diff" data-n="6">💀 Expert<small>36 pcs</small></div>
+      <div id="hostControls">
+        <div class="field">
+          <label class="field-label">Difficulty</label>
+          <div class="opts" id="diffPick2">
+            <div class="opt" data-n="3"><div class="t">Easy</div><div class="s">9</div></div>
+            <div class="opt active" data-n="4"><div class="t">Medium</div><div class="s">16</div></div>
+            <div class="opt" data-n="5"><div class="t">Hard</div><div class="s">25</div></div>
+            <div class="opt" data-n="6"><div class="t">Expert</div><div class="s">36</div></div>
+          </div>
         </div>
 
-        <label>Pick a Sample Photo</label>
-        <div class="samples" id="samples2"></div>
-
-        <label>Upload Your Photo</label>
-        <div class="upload-zone" id="uploadZone2">
-          <div class="icon">📷</div>
-          <div><strong>Tap to upload</strong> or drag &amp; drop</div>
-          <input type="file" id="fileInput2" accept="image/*" hidden />
+        <div class="field">
+          <label class="field-label">Choose a sample photo</label>
+          <div class="samples" id="samples2"></div>
         </div>
-        <div class="preview-wrap" id="previewWrap2" style="display:none">
-          <img id="previewImg2" alt="preview" />
+
+        <div class="field">
+          <label class="field-label">Or upload your own</label>
+          <div class="upzone" id="uploadZone2">
+            <div class="ic">📷</div>
+            <div class="t">Click or drop an image</div>
+            <input type="file" id="fileInput2" accept="image/*" hidden />
+          </div>
+          <div class="preview" id="previewWrap2" style="display:none"><img id="previewImg2" alt="preview" /></div>
         </div>
 
         <div class="btn-row">
-          <button class="btn full green" id="startBtn" disabled>🧩 Let's Play! (wait for photo)</button>
+          <button class="btn primary block" id="startBtn" disabled>Start game</button>
         </div>
       </div>
 
-      <div id="guestControls" style="display:none; text-align:center; margin-top:18px; padding:20px; background:rgba(255,255,255,.05); border-radius:14px;">
-        <div style="font-size:2rem">⏳</div>
-        <div style="font-weight:700; margin-top:6px">Waiting for host to start…</div>
-        <div style="color:#c4b5fd; font-size:.85rem">Chat with them in the side panel once the game starts!</div>
+      <div id="guestWait" class="guest-wait hidden">
+        <div class="spin"></div>
+        <div class="t">Waiting for host to start</div>
+        <div class="s">The room creator will start the game when everyone's in.</div>
       </div>
 
-      <div class="btn-row" style="margin-top:14px">
-        <button class="btn ghost full" id="leaveBtn">🚪 Leave Room</button>
+      <div class="btn-row">
+        <button class="btn ghost block" id="leaveBtn">Leave room</button>
       </div>
     </div>
   </div>
 
   <!-- ============== GAME ============== -->
-  <div class="game-wrap" id="gameWrap">
+  <div class="game" id="gameWrap">
     <div class="topbar">
-      <div class="stat">⏱️ <span id="timer">00:00</span></div>
-      <div class="stat">🧩 <span id="progress">0/0</span></div>
-      <div class="stat">🧑‍🤝‍🧑 <span id="onlineCount">1</span></div>
-      <div class="stat" style="background:linear-gradient(45deg,rgba(255,107,157,.25),rgba(192,132,252,.25));border:1px solid var(--purple)">🎟️ <span id="codeMini">—</span></div>
+      <div class="logo-mini"><span class="dot"></span> Jigsaw</div>
+      <div class="stat">⏱ <b id="timer">00:00</b></div>
+      <div class="stat">🧩 <b id="progress">0/0</b></div>
+      <div class="stat">👥 <b id="onlineCount">1</b></div>
+      <div class="stat code" id="codeMini">—</div>
       <div class="spacer"></div>
-      <button class="icon-btn" id="shuffleBtn" title="Shuffle loose pieces">🔀</button>
-      <button class="icon-btn" id="hintBtn" title="Flash one piece's spot">💡</button>
-      <button class="icon-btn" id="refBtn" title="Show reference photo">🖼️</button>
-      <button class="icon-btn" id="chatBtn" title="Toggle chat">💬</button>
-      <button class="icon-btn" id="menuBtn" title="Menu">☰</button>
+      <button class="btn icon" id="shuffleBtn" title="Shuffle loose pieces">⤮</button>
+      <button class="btn icon" id="hintBtn" title="Hint">💡</button>
+      <button class="btn icon" id="refBtn" title="Hold to show reference">👁</button>
+      <button class="btn icon" id="chatBtn" title="Toggle panel">💬</button>
+      <button class="btn icon" id="menuBtn" title="Menu">⋯</button>
     </div>
     <div class="progress"><div id="progBar"></div></div>
 
     <div class="play-area">
-      <div class="canvas-wrap" id="canvasWrap">
+      <div class="canvas-area" id="canvasWrap">
         <canvas id="board"></canvas>
-        <div class="cursors" id="cursors"></div>
+        <div class="tray-hint">Loose pieces</div>
       </div>
       <aside class="side" id="sidePanel">
-        <div class="player-list-side" id="playerListSide"></div>
-        <h3>💬 Chat</h3>
+        <div class="side-h">
+          <div class="t">Players</div>
+          <div class="plist" id="playerListSide"></div>
+        </div>
+        <div class="side-h" style="border-top:1px solid var(--border); border-bottom:none; padding-bottom:4px">
+          <div class="t" style="margin-top:4px">Chat</div>
+        </div>
         <div class="chat-box" id="chatBox"></div>
-        <div class="chat-input">
-          <input type="text" id="chatInput" placeholder="Say something sweet… 💞" maxlength="200" />
-          <button id="chatSend">➤</button>
+        <div class="chat-in">
+          <input type="text" id="chatInput" placeholder="Send a message…" maxlength="200" />
+          <button id="chatSend">→</button>
         </div>
       </aside>
     </div>
@@ -383,1025 +502,634 @@
 </div>
 
 <div class="ref-overlay" id="refOverlay">
-  <div class="close" id="refClose">✕</div>
+  <button class="ref-close" id="refClose">✕</button>
   <img id="refImg" alt="reference" />
-  <div class="who" id="refWho"></div>
+  <div class="ref-who" id="refWho"></div>
 </div>
 
-<div class="modal" id="winModal">
-  <div class="modal-card">
-    <h2>🎉 You Did It! 🎉</h2>
-    <p id="winText">Together, you finished the puzzle!</p>
-    <p style="font-size:.9rem">⏱️ Time: <strong id="winTime">00:00</strong></p>
+<div class="modal-bg" id="winModal">
+  <div class="modal">
+    <div style="font-size:32px; margin-bottom:8px;">🎉</div>
+    <h2>Puzzle complete</h2>
+    <p id="winText">Nicely done — you finished it together.</p>
+    <div class="time">Time: <b id="winTime">00:00</b></div>
     <div class="btn-row" style="justify-content:center">
-      <button class="btn" id="playAgainBtn">🔄 Play Again</button>
+      <button class="btn primary keep-size" id="playAgainBtn" style="flex:0 0 auto; padding:0 20px;">Play again</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast">Hi!</div>
+<div class="toast" id="toast">Hi</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-/* =====================================================================
-   🧩 JIGSAW TOGETHER — Client
-   - Real-time multiplayer via Socket.IO
-   - Canvas-rendered board with pan/zoom
-   - Pieces: image sliced on-the-fly with jigsaw tabs/knobs drawn as masks
-   ===================================================================== */
-
-const SOCKET = io({ transports: ['websocket','polling'] });
-const BOARD_W = 1000, BOARD_H = 1000; // logical board coords (match server)
-const TRAY_W = 400; // extra to the right for scattered pieces
-
-const $ = sel => document.querySelector(sel);
-const $$ = sel => document.querySelectorAll(sel);
-
-// ---------- Hearts background ----------
-(function hearts(){
-  const hb = $('#hearts');
-  const emojis = ['💖','💜','💙','💚','🧡','💛','✨','💕'];
-  for (let i=0;i<22;i++){
-    const s = document.createElement('span');
-    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
-    s.style.left = Math.random()*100 + '%';
-    s.style.animationDuration = (10+Math.random()*18) + 's';
-    s.style.animationDelay = (-Math.random()*20) + 's';
-    s.style.fontSize = (14+Math.random()*18) + 'px';
-    hb.appendChild(s);
-  }
-})();
+/* Jigsaw — realtime multiplayer client */
+const SOCKET = io({ transports:['websocket','polling'] });
+const BOARD_W = 1000, BOARD_H = 1000, TRAY_W = 380;
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
 
 // ---------- Toast ----------
-function toast(msg, ms=2200){
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), ms);
+function toast(msg, ms=2000){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'), ms);
 }
 
-// ---------- Sample images (generated procedurally so no hotlink issues) ----------
+// ---------- Sample images (clean, less cheesy) ----------
 function makeSample(id){
-  const c = document.createElement('canvas'); c.width=400; c.height=400;
-  const cx = c.getContext('2d');
-  if (id===0){ // sunset couple vibe
-    const g = cx.createLinearGradient(0,0,0,400);
-    g.addColorStop(0,'#ff9a9e'); g.addColorStop(.5,'#fad0c4'); g.addColorStop(1,'#a18cd1');
-    cx.fillStyle=g; cx.fillRect(0,0,400,400);
-    cx.fillStyle='#ffb199'; cx.beginPath(); cx.arc(200,260,80,0,Math.PI*2); cx.fill();
-    cx.fillStyle='rgba(255,255,255,.3)'; cx.font='bold 80px Fredoka One, sans-serif'; cx.textAlign='center';
-    cx.fillText('💞', 200, 180);
-    cx.font='bold 32px Nunito, sans-serif'; cx.fillStyle='#fff';
-    cx.fillText('Sunset Love', 200, 360);
-  } else if (id===1){ // galaxy
-    const g = cx.createRadialGradient(200,200,20,200,200,280);
-    g.addColorStop(0,'#fbc2eb'); g.addColorStop(.4,'#a6c1ee'); g.addColorStop(1,'#0f0c29');
-    cx.fillStyle=g; cx.fillRect(0,0,400,400);
-    for(let i=0;i<80;i++){ cx.fillStyle=`rgba(255,255,255,${Math.random()})`; cx.fillRect(Math.random()*400,Math.random()*400,2,2); }
-    cx.font='80px sans-serif'; cx.textAlign='center'; cx.fillText('🌌',200,220);
-    cx.font='bold 30px Nunito, sans-serif'; cx.fillStyle='#fff'; cx.fillText('Galaxy',200,330);
-  } else if (id===2){ // rainbow
-    const g = cx.createLinearGradient(0,0,400,400);
-    g.addColorStop(0,'#ff6b9d');g.addColorStop(.25,'#facc15');g.addColorStop(.5,'#34d399');g.addColorStop(.75,'#60a5fa');g.addColorStop(1,'#c084fc');
-    cx.fillStyle=g; cx.fillRect(0,0,400,400);
-    cx.fillStyle='rgba(255,255,255,.25)'; cx.beginPath(); cx.arc(200,440,300,Math.PI,0); cx.fill();
-    cx.font='70px sans-serif'; cx.textAlign='center'; cx.fillText('🌈',200,220);
-    cx.font='bold 30px Nunito, sans-serif'; cx.fillStyle='#fff'; cx.fillText('Rainbow',200,330);
+  const c=document.createElement('canvas'); c.width=480; c.height=480;
+  const x=c.getContext('2d');
+  if (id===0){ // warm gradient / sunset
+    const g=x.createLinearGradient(0,0,0,480);
+    g.addColorStop(0,'#fb923c'); g.addColorStop(.5,'#f472b6'); g.addColorStop(1,'#7c3aed');
+    x.fillStyle=g; x.fillRect(0,0,480,480);
+    x.fillStyle='rgba(255,255,255,.3)';
+    for(let i=0;i<5;i++){ x.beginPath(); x.arc(240+(i-2)*40, 200-i*20, 40-i*5, 0, Math.PI*2); x.fill(); }
+    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
+    x.fillText('Sunset', 240, 420);
+  } else if (id===1){ // deep ocean
+    const g=x.createLinearGradient(0,0,0,480);
+    g.addColorStop(0,'#0f172a'); g.addColorStop(.5,'#1e3a8a'); g.addColorStop(1,'#0891b2');
+    x.fillStyle=g; x.fillRect(0,0,480,480);
+    x.strokeStyle='rgba(255,255,255,.15)'; x.lineWidth=2;
+    for(let i=0;i<8;i++){ x.beginPath(); x.moveTo(0,80+i*50); x.bezierCurveTo(160,40+i*50,320,120+i*50,480,80+i*50); x.stroke(); }
+    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
+    x.fillText('Ocean', 240, 420);
+  } else { // forest
+    const g=x.createLinearGradient(0,0,0,480);
+    g.addColorStop(0,'#064e3b'); g.addColorStop(.6,'#065f46'); g.addColorStop(1,'#022c22');
+    x.fillStyle=g; x.fillRect(0,0,480,480);
+    for(let i=0;i<30;i++){
+      x.fillStyle=`rgba(${20+Math.random()*40},${80+Math.random()*60},${30+Math.random()*30},${.4+Math.random()*.4})`;
+      const cx=Math.random()*480, cy=Math.random()*480, r=20+Math.random()*40;
+      x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.fill();
+    }
+    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
+    x.fillText('Forest', 240, 420);
   }
-  return c.toDataURL('image/jpeg', 0.85);
+  return c.toDataURL('image/jpeg', 0.82);
 }
-const SAMPLES = [makeSample(0), makeSample(1), makeSample(2)];
+const SAMPLES=[makeSample(0),makeSample(1),makeSample(2)];
 
 function renderSamples(container, onClick){
-  container.innerHTML = '';
+  container.innerHTML='';
   SAMPLES.forEach((url,i)=>{
-    const d = document.createElement('div');
-    d.className='sample' + (i===0?' sel':'');
-    const im = document.createElement('img'); im.src=url; im.style.width='100%'; im.style.height='100%'; im.style.objectFit='cover';
+    const d=document.createElement('div');
+    d.className='sample'+(i===0?' active':'');
+    const im=document.createElement('img'); im.src=url;
     d.appendChild(im);
-    d.addEventListener('click', ()=>{
-      container.querySelectorAll('.sample').forEach(x=>x.classList.remove('sel'));
-      d.classList.add('sel');
-      onClick(url);
+    d.addEventListener('click',()=>{
+      container.querySelectorAll('.sample').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active'); onClick(url);
     });
     container.appendChild(d);
   });
 }
 
-// ---------- Tabs ----------
-$$('.tab').forEach(t => t.addEventListener('click', ()=>{
-  $$('.tab').forEach(x=>x.classList.remove('active'));
-  $$('.panel').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-  $('#panel-'+t.dataset.tab).classList.add('active');
-}));
+// ---------- Segmented tabs ----------
+$$('.seg').forEach(seg=>{
+  seg.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const tab=b.dataset.tab;
+      const panels=seg.parentElement.querySelectorAll('.panel');
+      panels.forEach(p=>p.classList.toggle('active', p.id==='panel-'+tab));
+    });
+  });
+});
 
 // ---------- State ----------
-const state = {
-  selfId: null,
-  inRoom: false,
-  room: null, // latest server state
-  difficulty: 4,
-  imageUrl: SAMPLES[0],
-  imgEl: null,
-  isHost: false,
-  started: false,
-  // canvas view
-  scale: 1, offsetX: 0, offsetY: 0,
-  // pieces (rendering copy, synced via server)
-  pieces: [],
-  // drag
-  dragging: null, dragOffX:0, dragOffY:0, didDrag:false,
-  panning: false, panStartX:0, panStartY:0, panOffX0:0, panOffY0:0,
-  // pointers
-  lastTouch: null, pinchDist:0,
-  // cursors of other players
-  cursors: new Map(),
-  // hint
-  hintPiece: null, hintT: 0,
-  // zoom for mobile
-  showSide: true,
+const state={
+  selfId:null, inRoom:false, room:null, difficulty:4,
+  imageUrl:SAMPLES[0], imgEl:null, isHost:false, started:false,
+  scale:1, offsetX:0, offsetY:0,
+  pieces:[],
+  dragging:null, dragOffX:0, dragOffY:0,
+  panning:false, panStartX:0, panStartY:0, panOffX0:0, panOffY0:0,
+  hintPiece:null, hintT:0,
 };
 
 // ---------- File upload ----------
-function setupUpload(zone, input, img, wrap, pickUrl){
-  zone.addEventListener('click', ()=>input.click());
-  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.style.borderColor='var(--purple)'; });
-  zone.addEventListener('dragleave', ()=> zone.style.borderColor='');
-  zone.addEventListener('drop', e=>{
-    e.preventDefault(); zone.style.borderColor='';
-    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
-  });
-  input.addEventListener('change', e=>{ if (e.target.files[0]) loadFile(e.target.files[0]); });
-  function loadFile(f){
-    if (!f.type.startsWith('image/')) return toast('Please pick an image file!');
-    if (f.size > 6*1024*1024) return toast('Image too big (max 6MB)');
-    const r = new FileReader();
-    r.onload = () => {
-      // Resize before sending
-      const im = new Image();
-      im.onload = () => {
-        const maxDim = 1200;
-        let w = im.width, h = im.height;
-        if (w>maxDim||h>maxDim){ const s = maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
-        const c = document.createElement('canvas'); c.width=w; c.height=h;
+function setupUpload(zone,input,img,wrap,onPick){
+  zone.addEventListener('click',()=>input.click());
+  zone.addEventListener('dragover',e=>{e.preventDefault(); zone.style.borderColor='var(--accent)';});
+  zone.addEventListener('dragleave',()=>zone.style.borderColor='');
+  zone.addEventListener('drop',e=>{e.preventDefault(); zone.style.borderColor=''; if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]);});
+  input.addEventListener('change',e=>{ if(e.target.files[0]) load(e.target.files[0]); });
+  function load(f){
+    if(!f.type.startsWith('image/')) return toast('Please select an image.');
+    if(f.size>6*1024*1024) return toast('Image too large (max 6 MB).');
+    const r=new FileReader();
+    r.onload=()=>{
+      const im=new Image();
+      im.onload=()=>{
+        let w=im.width,h=im.height,M=1200,s=1;
+        if(w>M||h>M){s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
         c.getContext('2d').drawImage(im,0,0,w,h);
-        const url = c.toDataURL('image/jpeg', 0.85);
-        img.src = url; wrap.style.display='block';
-        state.imageUrl = url;
-        if (pickUrl) pickUrl(url, w, h);
+        const url=c.toDataURL('image/jpeg',0.85);
+        img.src=url; wrap.style.display='block';
+        state.imageUrl=url; onPick&&onPick(url,w,h);
       };
-      im.src = r.result;
+      im.src=r.result;
     };
     r.readAsDataURL(f);
   }
 }
 function pickSample(url){
-  state.imageUrl = url;
-  $('#previewImg').src = url; $('#previewWrap').style.display='block';
-  const im = new Image(); im.onload=()=>{}; im.src=url;
+  state.imageUrl=url;
+  $('#previewImg').src=url; $('#previewWrap').style.display='block';
 }
-renderSamples($('#samples'), pickSample);
-// initial sample selected
-$('#previewImg').src = SAMPLES[0]; $('#previewWrap').style.display='block';
+renderSamples($('#samples'),pickSample);
+$('#previewImg').src=SAMPLES[0]; $('#previewWrap').style.display='block';
+setupUpload($('#uploadZone'),$('#fileInput'),$('#previewImg'),$('#previewWrap'),pickSample);
 
-setupUpload($('#uploadZone'), $('#fileInput'), $('#previewImg'), $('#previewWrap'), pickSample);
-
-// Difficulty picker (pre-lobby)
-$$('#diffPick .diff').forEach(d=>{
-  d.addEventListener('click',()=>{
-    $$('#diffPick .diff').forEach(x=>x.classList.remove('active'));
-    d.classList.add('active');
-    state.difficulty = parseInt(d.dataset.n);
+// Difficulty pickers
+function setupDifficulty(sel, init){
+  $$(sel+' .opt').forEach(d=>{
+    d.addEventListener('click',()=>{
+      $$(sel+' .opt').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+      const n=parseInt(d.dataset.n);
+      if(sel==='#diffPick') state.difficulty=n;
+      else SOCKET.emit('setDifficulty',{n});
+    });
   });
-});
+}
+setupDifficulty('#diffPick');
 
-// ---------- Color palette ----------
-const COLORS = [
-  {hex:'#ff6b9d', emoji:'💖'},{hex:'#c084fc',emoji:'💜'},{hex:'#60a5fa',emoji:'💙'},
-  {hex:'#34d399',emoji:'💚'},{hex:'#fb923c',emoji:'🧡'},{hex:'#facc15',emoji:'💛'}
+// ---------- Colors ----------
+const COLORS=[
+  {hex:'#f59e0b',name:'Amber'},{hex:'#ef4444',name:'Red'},{hex:'#3b82f6',name:'Blue'},
+  {hex:'#22c55e',name:'Green'},{hex:'#a855f7',name:'Purple'},{hex:'#ec4899',name:'Pink'},
 ];
-function renderColorPick(pickHex){
-  const cp = $('#colorPick'); cp.innerHTML='';
+function renderColorPick(hex){
+  const cp=$('#colorPick'); cp.innerHTML='';
   COLORS.forEach(c=>{
-    const d = document.createElement('div');
-    d.className='color-dot' + (c.hex===pickHex?' sel':'');
+    const d=document.createElement('div');
+    d.className='colordot'+(c.hex===hex?' active':'');
     d.style.background=c.hex;
     d.addEventListener('click',()=>{
-      cp.querySelectorAll('.color-dot').forEach(x=>x.classList.remove('sel'));
-      d.classList.add('sel');
-      SOCKET.emit('updateColor',{hex:c.hex});
+      cp.querySelectorAll('.colordot').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active'); SOCKET.emit('updateColor',{hex:c.hex});
     });
     cp.appendChild(d);
   });
 }
 
-// ---------- Create / Join room ----------
-$('#createBtn').addEventListener('click', ()=>{
-  const name = $('#hostName').value.trim() || 'Host';
-  SOCKET.emit('createRoom', (res)=>{
-    if (!res.ok) return toast('Could not create room 😢');
-    state.selfId = res.selfId;
+// ---------- Room actions ----------
+$('#createBtn').addEventListener('click',()=>{
+  const name=$('#hostName').value.trim()||'Host';
+  SOCKET.emit('createRoom',res=>{
+    if(!res.ok) return toast('Could not create room.');
+    state.selfId=res.selfId;
     SOCKET.emit('updateName',{name});
-    // Send image + difficulty after room created
-    const im = new Image();
-    im.onload = () => {
-      let w=im.width, h=im.height;
-      const maxDim = 1200;
-      if (w>maxDim||h>maxDim){ const s = maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
-      const c = document.createElement('canvas'); c.width=w; c.height=h;
+    const im=new Image();
+    im.onload=()=>{
+      let w=im.width,h=im.height,M=1200;
+      if(w>M||h>M){const s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
       c.getContext('2d').drawImage(im,0,0,w,h);
-      const dataUrl = c.toDataURL('image/jpeg', 0.85);
-      SOCKET.emit('setImage',{dataUrl,w,h});
+      SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
     };
-    im.src = state.imageUrl;
-    SOCKET.emit('setDifficulty',{n: state.difficulty});
+    im.src=state.imageUrl;
+    SOCKET.emit('setDifficulty',{n:state.difficulty});
     enterLobby(res.code);
   });
 });
-
-$('#joinBtn').addEventListener('click', ()=>{
-  const code = $('#joinCode').value.trim();
-  const name = $('#joinName').value.trim() || 'Guest';
-  if (!code) return toast('Enter a room code!');
-  SOCKET.emit('joinRoom',{code, name}, (res)=>{
-    if (!res.ok) return toast(res.error || 'Cannot join');
-    state.selfId = res.selfId;
-    enterLobby(res.code);
+$('#joinBtn').addEventListener('click',()=>{
+  const code=$('#joinCode').value.trim();
+  const name=$('#joinName').value.trim()||'Guest';
+  if(!code) return toast('Enter a room code.');
+  SOCKET.emit('joinRoom',{code,name},res=>{
+    if(!res.ok) return toast(res.error||'Cannot join.');
+    state.selfId=res.selfId; enterLobby(res.code);
   });
 });
 
-// Allow join via URL param ?room=ABCDE
-(function urlJoin(){
-  const p = new URLSearchParams(location.search);
-  const c = p.get('room');
-  if (c){
-    $('.tab[data-tab="join"]').click();
-    $('#joinCode').value = c.toUpperCase();
-    $('#joinName').focus();
+// URL ?room=CODE
+(()=>{
+  const p=new URLSearchParams(location.search); const c=p.get('room');
+  if(c){
+    document.querySelector('.seg button[data-tab="join"]').click();
+    $('#joinCode').value=c.toUpperCase(); $('#joinName').focus();
   }
 })();
 
-// ---------- In-lobby UI ----------
 function enterLobby(code){
-  state.inRoom = true;
-  $('#preTabs').style.display='none';
-  $('#inLobby').style.display='block';
-  $('#roomCode').textContent = code;
-  const url = `${location.origin}?room=${code}`;
-  $('#shareLink').textContent = url;
-  $('#codeMini').textContent = code;
+  state.inRoom=true;
+  $('#preJoin').classList.add('hidden');
+  $('#inLobby').classList.remove('hidden');
+  $('#roomCode').textContent=code;
+  const url=`${location.origin}?room=${code}`;
+  $('#shareLink').textContent=url;
+  $('#codeMini').textContent=code;
   renderColorPick(COLORS[0].hex);
 }
-
-$('#copyLinkBtn').addEventListener('click', ()=>{
-  const txt = $('#shareLink').textContent;
-  navigator.clipboard?.writeText(txt).then(()=>toast('Invite link copied! 📋'));
+$('#copyLinkBtn').addEventListener('click',()=>{
+  navigator.clipboard?.writeText($('#shareLink').textContent).then(()=>toast('Link copied.'));
 });
+$('#myName').addEventListener('change',()=>SOCKET.emit('updateName',{name:$('#myName').value}));
+$('#leaveBtn').addEventListener('click',()=>location.reload());
 
-$('#myName').addEventListener('change', ()=> SOCKET.emit('updateName',{name: $('#myName').value}));
-
-$('#leaveBtn').addEventListener('click', ()=>{ location.reload(); });
-
-renderSamples($('#samples2'), (url)=>{
-  state.imageUrl = url;
-  $('#previewImg2').src = url; $('#previewWrap2').style.display='block';
-  const im = new Image();
-  im.onload = () => {
-    let w=im.width, h=im.height;
-    const maxDim=1200;
-    if (w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+renderSamples($('#samples2'),url=>{
+  state.imageUrl=url;
+  $('#previewImg2').src=url; $('#previewWrap2').style.display='block';
+  const im=new Image();
+  im.onload=()=>{
+    let w=im.width,h=im.height,M=1200;
+    if(w>M||h>M){const s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
     const c=document.createElement('canvas'); c.width=w; c.height=h;
     c.getContext('2d').drawImage(im,0,0,w,h);
     SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
   };
   im.src=url;
 });
-setupUpload($('#uploadZone2'), $('#fileInput2'), $('#previewImg2'), $('#previewWrap2'), (url)=>{
-  const im = new Image();
-  im.onload = () => {
-    let w=im.width, h=im.height;
-    const maxDim=1200;
-    if (w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+setupUpload($('#uploadZone2'),$('#fileInput2'),$('#previewImg2'),$('#previewWrap2'),url=>{
+  const im=new Image();
+  im.onload=()=>{
+    let w=im.width,h=im.height,M=1200;
+    if(w>M||h>M){const s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
     const c=document.createElement('canvas'); c.width=w; c.height=h;
     c.getContext('2d').drawImage(im,0,0,w,h);
     SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
   };
   im.src=url;
 });
-$$('#diffPick2 .diff').forEach(d=>{
-  d.addEventListener('click',()=>{
-    $$('#diffPick2 .diff').forEach(x=>x.classList.remove('active'));
-    d.classList.add('active');
-    SOCKET.emit('setDifficulty',{n: parseInt(d.dataset.n)});
-  });
-});
-$('#startBtn').addEventListener('click', ()=> SOCKET.emit('startGame'));
+setupDifficulty('#diffPick2');
+$('#startBtn').addEventListener('click',()=>SOCKET.emit('startGame'));
 
-// ---------- Socket state handlers ----------
-SOCKET.on('connect', ()=>{ console.log('socket connected', SOCKET.id); });
-SOCKET.on('error', msg => toast(msg));
-SOCKET.on('disconnect', ()=> toast('Disconnected 😢 — refresh?'));
+// ---------- Socket state ----------
+SOCKET.on('connect',()=>{});
+SOCKET.on('error',msg=>toast(msg));
+SOCKET.on('disconnect',()=>toast('Disconnected — refresh to reconnect.'));
 
-SOCKET.on('state', (room)=>{
-  state.room = room;
-  const wasStarted = state.started;
-  state.started = room.started;
-  state.isHost = room.hostId === state.selfId;
-
-  if (state.inRoom){
-    renderLobbyRoom(room);
-    if (room.started && !wasStarted){
-      startGame(room);
-    } else if (!room.started && wasStarted){
-      stopGame(); // host restarted
-    }
+SOCKET.on('state',room=>{
+  state.room=room; const was=state.started; state.started=room.started; state.isHost=room.hostId===state.selfId;
+  if(state.inRoom){ renderLobby(room);
+    if(room.started&&!was) startGame(room);
+    else if(!room.started&&was) stopGame();
   }
-
-  if (state.started){
-    // Sync pieces if changed structure (full reset)
-    if (!state.pieces.length || state.pieces.length !== room.pieces.length){
-      state.pieces = room.pieces.map(p=>({...p}));
-      fitView();
+  if(state.started){
+    if(!state.pieces.length||state.pieces.length!==room.pieces.length){
+      state.pieces=room.pieces.map(p=>({...p})); fitView();
     } else {
-      // Patch pieces for non-self updates (server-authoritative for placed flag)
-      for (const sp of room.pieces){
-        const lp = state.pieces.find(pp=>pp.id===sp.id);
-        if (lp){
-          // If I'm dragging this piece, don't snap it back
-          if (state.dragging?.id===sp.id) continue;
-          lp.x=sp.x; lp.y=sp.y; lp.z=sp.z; lp.placed=sp.placed; lp.lastMover=sp.lastMover;
-        }
-      }
+      for(const sp of room.pieces){ const lp=state.pieces.find(pp=>pp.id===sp.id);
+        if(lp && state.dragging?.id!==sp.id){ lp.x=sp.x; lp.y=sp.y; lp.z=sp.z; lp.placed=sp.placed; lp.lastMover=sp.lastMover; } }
     }
     updateStats(room);
   }
 });
-
-SOCKET.on('pieceMove', (mv)=>{
-  if (!state.started) return;
-  const p = state.pieces.find(pp=>pp.id===mv.id);
-  if (!p) return;
-  if (state.dragging?.id===mv.id) return; // ignore self
+SOCKET.on('pieceMove',mv=>{
+  if(!state.started) return;
+  const p=state.pieces.find(pp=>pp.id===mv.id); if(!p) return;
+  if(state.dragging?.id===mv.id) return;
   p.x=mv.x; p.y=mv.y; p.z=mv.z; p.placed=mv.placed; p.lastMover=mv.lastMover;
-  $('#progress').textContent = `${mv.placedCount}/${state.pieces.length}`;
-  $('#progBar').style.width = (mv.placedCount/state.pieces.length*100)+'%';
-  if (mv.finished) showWin();
+  $('#progress').innerHTML=`${mv.placedCount}/${state.pieces.length}`;
+  $('#progBar').style.width=(mv.placedCount/state.pieces.length*100)+'%';
+  if(mv.finished) showWin();
+});
+SOCKET.on('chatMsg',m=>addMsg(m));
+SOCKET.on('hint',()=>{
+  const loose=state.pieces.filter(p=>!p.placed); if(!loose.length) return;
+  state.hintPiece=loose[Math.floor(Math.random()*loose.length)].id;
+  state.hintT=performance.now(); toast('Hint: look for the glow.');
+});
+SOCKET.on('viewPhoto',({on,name})=>{
+  if(on){ $('#refOverlay').classList.add('show'); $('#refWho').textContent=name+' is showing the photo'; }
+  else $('#refOverlay').classList.remove('show');
 });
 
-SOCKET.on('chatMsg', msg => addChatMsg(msg));
-
-SOCKET.on('hint', ()=>{
-  // Pick an unplaced piece and flash it
-  const loose = state.pieces.filter(p=>!p.placed);
-  if (!loose.length) return;
-  const p = loose[Math.floor(Math.random()*loose.length)];
-  state.hintPiece = p.id; state.hintT = performance.now();
-  toast('💡 Hint: one piece is glowing!');
-});
-
-SOCKET.on('viewPhoto', ({on, name})=>{
-  if (on){
-    $('#refOverlay').classList.add('show');
-    $('#refWho').textContent = `${name} is showing the photo`;
-  } else {
-    $('#refOverlay').classList.remove('show');
-  }
-});
-
-function renderLobbyRoom(room){
-  $('#playerCount').textContent = Object.keys(room.players).length;
-  const me = room.players.find(p=>p.id===state.selfId);
-  if (me) $('#myName').value = me.name;
-
-  const list = $('#playersList'); list.innerHTML='';
-  const sideList = $('#playerListSide');
-  if (sideList) sideList.innerHTML='';
-
-  for (const p of room.players){
-    // Lobby list
-    const d = document.createElement('div');
-    d.className='player'; d.style.borderLeftColor=p.color;
-    d.innerHTML = `<div class="avatar" style="background:${p.color}22;">${p.emoji||'🧑'}</div>
-                   <div class="name">${escapeHtml(p.name)}
-                     ${p.id===state.selfId?'<span class="you">YOU</span>':''}
-                     ${p.id===room.hostId?'<span class="host">HOST</span>':''}
-                   </div>`;
+function renderLobby(room){
+  $('#playerCount').textContent=room.players.length;
+  const me=room.players.find(p=>p.id===state.selfId); if(me) $('#myName').value=me.name;
+  const list=$('#playersList'); list.innerHTML='';
+  const side=$('#playerListSide'); if(side) side.innerHTML='';
+  for(const p of room.players){
+    const d=document.createElement('div'); d.className='player'; d.style.borderLeft=`3px solid ${p.color}`;
+    d.innerHTML=`<div class="avatar" style="background:${p.color}22; color:${p.color}">●</div>
+                 <div class="pname">${esc(p.name)}
+                   ${p.id===state.selfId?'<span class="badge you" style="margin-left:6px">YOU</span>':''}
+                   ${p.id===room.hostId?'<span class="badge host" style="margin-left:6px">HOST</span>':''}
+                 </div>`;
     list.appendChild(d);
-
-    // side panel (game)
-    if (state.started){
-      const r = document.createElement('div');
-      r.className='p-row';
-      r.innerHTML = `<div class="av" style="background:${p.color}33;border:2px solid ${p.color}">${p.emoji||'🧑'}</div>
-                     <div class="nm" style="color:${p.color}">${escapeHtml(p.name)}</div>
-                     <div class="cnt">${p.piecesPlaced||0} 🧩</div>`;
-      sideList.appendChild(r);
+    if(state.started){
+      const r=document.createElement('div'); r.className='prow';
+      r.innerHTML=`<div class="pav" style="background:${p.color}22; color:${p.color}; border:1px solid ${p.color}44">●</div>
+                   <div class="pnm" style="color:${p.color}">${esc(p.name)}</div>
+                   <div class="pcnt">${p.piecesPlaced||0}</div>`;
+      side.appendChild(r);
     }
   }
-  $('#onlineCount').textContent = Object.keys(room.players).length;
-
-  if (state.isHost){
-    $('#hostControls').style.display='block';
-    $('#guestControls').style.display='none';
-    // sync difficulty selection
-    $$('#diffPick2 .diff').forEach(x=>x.classList.toggle('active', parseInt(x.dataset.n)===room.difficulty));
-    $('#startBtn').disabled = !room.hasImage;
-    $('#startBtn').textContent = room.hasImage ? '🧩 Let\'s Play!' : '📷 Upload or pick a photo first';
-    $('#shuffleBtn').style.display='';
-    $('#hintBtn').style.display='';
+  $('#onlineCount').textContent=room.players.length;
+  if(state.isHost){
+    $('#hostControls').classList.remove('hidden');
+    $('#guestWait').classList.add('hidden');
+    $$('#diffPick2 .opt').forEach(o=>o.classList.toggle('active', parseInt(o.dataset.n)===room.difficulty));
+    $('#startBtn').disabled=!room.hasImage;
+    $('#startBtn').textContent=room.hasImage?'Start game':'Upload or pick a photo first';
+    $('#shuffleBtn').style.display=''; $('#hintBtn').style.display='';
   } else {
-    $('#hostControls').style.display='none';
-    $('#guestControls').style.display='block';
-    $('#shuffleBtn').style.display='none';
-    $('#hintBtn').style.display='none';
+    $('#hostControls').classList.add('hidden');
+    $('#guestWait').classList.remove('hidden');
+    $('#shuffleBtn').style.display='none'; $('#hintBtn').style.display='none';
   }
 }
-
-function addChatMsg(m){
-  const box = $('#chatBox');
-  const d = document.createElement('div');
-  if (m.system){
-    d.className='chat-msg system'; d.textContent = m.text;
-  } else {
-    d.className='chat-msg';
-    d.innerHTML = `<span class="who" style="color:${m.color}">${m.emoji||''} ${escapeHtml(m.name)}:</span> ${escapeHtml(m.text)}`;
-  }
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
+function addMsg(m){
+  const box=$('#chatBox'); const d=document.createElement('div');
+  if(m.system){ d.className='msg sys'; d.textContent=m.text; }
+  else { d.className='msg';
+    d.innerHTML=`<span class="who" style="color:${m.color}">${esc(m.name)}:</span> ${esc(m.text)}`; }
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
 }
-
-function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ---------- Chat ----------
-$('#chatSend').addEventListener('click', sendChat);
-$('#chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
-function sendChat(){
-  const v = $('#chatInput').value; if(!v.trim()) return;
-  SOCKET.emit('chat',{text:v}); $('#chatInput').value='';
-}
-$('#chatBtn').addEventListener('click', ()=>{
-  $('#sidePanel').classList.toggle('open');
-});
+$('#chatSend').addEventListener('click',sendChat);
+$('#chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
+function sendChat(){ const v=$('#chatInput').value; if(!v.trim()) return; SOCKET.emit('chat',{text:v}); $('#chatInput').value=''; }
+$('#chatBtn').addEventListener('click',()=>$('#sidePanel').classList.toggle('open'));
 
-// ---------- Game start ----------
-let gameTimer = null, imgEl=null;
+// ---------- Game ----------
+let gameTimer=null, imgEl=null;
 function startGame(room){
-  state.started = true;
-  state.pieces = room.pieces.map(p=>({...p}));
-  state.difficulty = room.difficulty;
-  $('#lobby').style.display='none';
-  $('#gameWrap').classList.add('active');
+  state.started=true; state.pieces=room.pieces.map(p=>({...p})); state.difficulty=room.difficulty;
+  $('#lobby').style.display='none'; $('#gameWrap').classList.add('active');
   $('#sidePanel').classList.remove('open');
-  // Load image
-  imgEl = new Image(); imgEl.crossOrigin='anonymous';
-  imgEl.onload = ()=>{
-    state.imgEl = imgEl;
-    precomputePiecePaths();
-    resizeCanvas();
-    fitView();
-    render();
-    startTimer();
-    // Welcome chat
-    addChatMsg({system:true, text:'🧩 Game started! Drag pieces onto the board — work together!'});
+  imgEl=new Image();
+  imgEl.onload=()=>{
+    state.imgEl=imgEl; precomputePaths(); resizeCanvas(); fitView(); render(); startTimer();
+    addMsg({sys:true,text:'Game started. Drag pieces onto the board.'});
   };
-  // We need the image data URL. Fetch latest state image: server doesn't broadcast dataUrl
-  // (too big). Instead, host has it locally; for guests we need to receive it once.
-  if (state.imageUrl && state.isHost){
-    imgEl.src = state.imageUrl;
-  } else {
-    // Request image from host via server? Simpler: emit a "requestImage" — but our server
-    // already has it in room.image.dataUrl (we don't send it in state broadcasts to save bandwidth).
-    // Quick fix: fetch it via a separate endpoint.
-    fetch('/img/'+room.code).then(r=>{
-      if (!r.ok) { toast('Failed to load photo…'); return;}
-      r.text().then(d=> imgEl.src = d);
-    });
-  }
+  if(state.imageUrl&&state.isHost){ imgEl.src=state.imageUrl; }
+  else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>imgEl.src=d); else toast('Failed to load image.'); });
 }
 function stopGame(){
-  state.started=false;
-  state.pieces=[];
-  $('#gameWrap').classList.remove('active');
-  $('#lobby').style.display='block';
-  $('#inLobby').style.display='block';
-  $('#preTabs').style.display='none';
+  state.started=false; state.pieces=[];
+  $('#gameWrap').classList.remove('active'); $('#lobby').style.display='';
+  $('#inLobby').classList.remove('hidden'); $('#preJoin').classList.add('hidden');
   clearInterval(gameTimer);
 }
-
-// --- Add image endpoint ---
-// (We'll add it via Express route — see end of file for http route.)
-// For simplicity we'll do it by appending a tiny Express handler here through a global fetch hook.
-// Actually simpler: add route on server. We'll just do a separate fetch and the server will serve it.
-
 function startTimer(){
-  const t0 = Date.now();
-  clearInterval(gameTimer);
-  gameTimer = setInterval(()=>{
-    const s = Math.floor((Date.now()-t0)/1000);
-    const mm = String(Math.floor(s/60)).padStart(2,'0');
-    const ss = String(s%60).padStart(2,'0');
-    $('#timer').textContent = `${mm}:${ss}`;
+  const t0=Date.now(); clearInterval(gameTimer);
+  gameTimer=setInterval(()=>{
+    const s=Math.floor((Date.now()-t0)/1000);
+    $('#timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
   },500);
 }
-
 function updateStats(room){
-  const placed = room.pieces.filter(p=>p.placed).length;
-  $('#progress').textContent = `${placed}/${room.pieces.length}`;
-  $('#progBar').style.width = (placed/room.pieces.length*100)+'%';
-  $('#playerCount').textContent = room.players.length;
+  const placed=room.pieces.filter(p=>p.placed).length;
+  $('#progress').textContent=`${placed}/${room.pieces.length}`;
+  $('#progBar').style.width=(placed/room.pieces.length*100)+'%';
 }
-
 function showWin(){
-  if ($('#winModal').classList.contains('show')) return;
-  $('#winTime').textContent = $('#timer').textContent;
+  if($('#winModal').classList.contains('show')) return;
+  $('#winTime').textContent=$('#timer').textContent;
   $('#winModal').classList.add('show');
-  confetti();
-  clearInterval(gameTimer);
+  confetti(); clearInterval(gameTimer);
 }
-$('#playAgainBtn').addEventListener('click', ()=>{
-  $('#winModal').classList.remove('show');
-  SOCKET.emit('restart');
-});
+$('#playAgainBtn').addEventListener('click',()=>{$('#winModal').classList.remove('show'); SOCKET.emit('restart');});
 
-// ---------- Canvas & pieces ----------
-const canvas = $('#board');
-const ctx = canvas.getContext('2d');
-let dpr = window.devicePixelRatio||1;
+// ---------- Canvas ----------
+const canvas=$('#board'), ctx=canvas.getContext('2d');
+let dpr=window.devicePixelRatio||1;
 
 function resizeCanvas(){
-  const r = canvas.parentElement.getBoundingClientRect();
-  canvas.width = r.width * dpr;
-  canvas.height = r.height * dpr;
-  canvas.style.width = r.width+'px';
-  canvas.style.height = r.height+'px';
+  const r=canvas.parentElement.getBoundingClientRect();
+  canvas.width=r.width*dpr; canvas.height=r.height*dpr;
+  canvas.style.width=r.width+'px'; canvas.style.height=r.height+'px';
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-window.addEventListener('resize', ()=>{ resizeCanvas(); if(state.started) render(); });
+window.addEventListener('resize',()=>{resizeCanvas(); if(state.started) render();});
 
 function fitView(){
-  if (!canvas.parentElement) return;
-  const r = canvas.parentElement.getBoundingClientRect();
-  // Fit the board (1000x1000) into the canvas, leaving room for tray
-  const totalW = BOARD_W + TRAY_W;
-  const s = Math.min(r.width/totalW, r.height/BOARD_H) * 0.95;
-  state.scale = s;
-  state.offsetX = (r.width - totalW*s)/2;
-  state.offsetY = (r.height - BOARD_H*s)/2;
+  if(!canvas.parentElement) return;
+  const r=canvas.parentElement.getBoundingClientRect();
+  const totW=BOARD_W+TRAY_W;
+  const s=Math.min(r.width/totW, r.height/BOARD_H)*0.94;
+  state.scale=s;
+  state.offsetX=(r.width - totW*s)/2;
+  state.offsetY=(r.height - BOARD_H*s)/2;
 }
-
-function screenToWorld(sx, sy){
-  const r = canvas.getBoundingClientRect();
-  const x = (sx - r.left - state.offsetX)/state.scale;
-  const y = (sy - r.top - state.offsetY)/state.scale;
-  return {x,y};
+function s2w(sx,sy){
+  const r=canvas.getBoundingClientRect();
+  return {x:(sx-r.left-state.offsetX)/state.scale, y:(sy-r.top-state.offsetY)/state.scale};
 }
-function worldToScreen(x,y){
-  return { x: x*state.scale + state.offsetX, y: y*state.scale + state.offsetY };
-}
+function w2s(x,y){ return {x:x*state.scale+state.offsetX, y:y*state.scale+state.offsetY}; }
 
-// Precompute jigsaw tab paths for each piece
-/* Each piece draws its neighbors' tabs so they interlock. We generate a
-   static "knob profile" and decide for each edge whether it has a tab in or out. */
-let piecePaths = []; // per piece: {path, clipW, clipH}
-let tabPattern = []; // for each edge of each piece: +1 (out), -1 (in), 0 (border flat)
-
-function precomputePiecePaths(){
-  const n = state.difficulty;
-  const pw = BOARD_W / n, ph = BOARD_H / n;
-  tabPattern = [];
-  piecePaths = [];
-  // Generate tab pattern: for horizontal edges (between rows) and vertical edges (between cols)
-  // hTabs[r][c] = sign for piece (r,c) bottom edge (out means bump hangs down)
-  // vTabs[r][c] = sign for piece (r,c) right edge
-  const hTabs=[], vTabs=[];
-  for (let r=0;r<n;r++){
-    hTabs.push([]); vTabs.push([]);
-    for (let c=0;c<n;c++){
-      hTabs[r].push(r<n-1 ? (Math.random()<0.5?1:-1) : 0);
-      vTabs[r].push(c<n-1 ? (Math.random()<0.5?1:-1) : 0);
-    }
-  }
-  for (let r=0;r<n;r++){
-    for (let c=0;c<n;c++){
-      const top    = r===0 ? 0 : -hTabs[r-1][c]; // opposite of neighbor's bottom
-      const bottom = hTabs[r][c];
-      const left   = c===0 ? 0 : -vTabs[r][c-1];
-      const right  = vTabs[r][c];
-      tabPattern.push({top,bottom,left,right});
-      piecePaths.push(buildPiecePath(pw, ph, top, right, bottom, left));
-    }
+let piecePaths=[], tabs=[];
+function precomputePaths(){
+  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  piecePaths=[]; tabs=[];
+  const h=[],v=[];
+  for(let r=0;r<n;r++){ h.push([]); v.push([]); for(let c=0;c<n;c++){
+    h[r].push(r<n-1?(Math.random()<.5?1:-1):0);
+    v[r].push(c<n-1?(Math.random()<.5?1:-1):0);
+  }}
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    const top=r===0?0:-h[r-1][c], bot=h[r][c], left=c===0?0:-v[r][c-1], right=v[r][c];
+    tabs.push({top,bot,left,right});
+    piecePaths.push(buildPath(pw,ph,top,right,bot,left));
   }
 }
-
-function buildPiecePath(pw, ph, top, right, bottom, left){
-  // Builds a Path2D for the piece outline, with tab knobs on non-zero sides.
-  // Coordinates: piece-local (0..pw, 0..ph). Knob size ~22% of edge.
-  const k = Math.min(pw,ph)*0.22;
-  const p = new Path2D();
-  const notch = (dir) => {
-    // dir: +1 means bump OUTSIDE the piece (away from interior)
-    // Start at (x,y) going east; draws a knob to the side specified by dir (positive y = down).
-    // Used on top edge (y=0, going right, out = -y) etc.
-    // We implement per-edge; this helper is unused in favor of explicit edge-by-edge drawing below.
-  };
+function buildPath(pw,ph,top,right,bot,left){
+  const k=Math.min(pw,ph)*.22, p=new Path2D();
   p.moveTo(0,0);
-  // TOP edge (from 0,0 to pw,0); out is -y
-  addEdge(p, 0,0, pw,0, ph, -top, k); // top
-  // RIGHT edge (from pw,0 to pw,ph); out is +x
-  addEdge(p, pw,0, pw,ph, ph, right, k, true);
-  // BOTTOM edge (from pw,ph to 0,ph); out is +y, going left
-  addEdge(p, pw,ph, 0,ph, ph, bottom, k);
-  // LEFT edge (from 0,ph to 0,0); out is -x, going up
-  addEdge(p, 0,ph, 0,0, ph, left, k, true);
-  p.closePath();
-  return p;
+  edge(p,0,0,pw,0,ph,-top,k);
+  edge(p,pw,0,pw,ph,ph,right,k,true);
+  edge(p,pw,ph,0,ph,ph,bot,k);
+  edge(p,0,ph,0,0,ph,left,k,true);
+  p.closePath(); return p;
 }
-
-// Draw one edge with a knob in the middle. If dir>0, knob sticks outward (toward perpendicular "out" direction).
-// If reverse=true, axis is vertical (moving along y). The knob is drawn perpendicular to the edge.
-function addEdge(p, x1,y1, x2,y2, edgeLen, dir, k, vertical=false){
-  // edge goes from (x1,y1) to (x2,y2). Normal points "out" by dir*(perpendicular unit).
-  const mx = (x1+x2)/2, my = (y1+y2)/2;
-  const kSize = k;
-  const kNeck = k*0.6;
-  if (dir===0){
-    p.lineTo(x2,y2); return;
-  }
-  if (!vertical){
-    // horizontal edge, moving from x1 to x2 (x1<x2 top, x1>x2 bottom)
-    const outY = dir; // +1 down, -1 up (multiplier)
-    const dirX = x2>x1 ? 1 : -1;
-    // 1/3 point
-    p.lineTo(mx - kSize*dirX, y1);
-    // curve outward
-    p.bezierCurveTo(
-      mx - kNeck*dirX, y1,
-      mx - kNeck*dirX, y1 + kSize*1.2*outY,
-      mx,              y1 + kSize*1.3*outY
-    );
-    p.bezierCurveTo(
-      mx + kNeck*dirX, y1 + kSize*1.2*outY,
-      mx + kNeck*dirX, y1,
-      mx + kSize*dirX, y1
-    );
+function edge(p,x1,y1,x2,y2,el,dir,k,vert){
+  const mx=(x1+x2)/2, my=(y1+y2)/2, kS=k, kN=k*.6;
+  if(dir===0){ p.lineTo(x2,y2); return; }
+  if(!vert){
+    const oY=dir, dX=x2>x1?1:-1;
+    p.lineTo(mx-kS*dX, y1);
+    p.bezierCurveTo(mx-kN*dX,y1, mx-kN*dX,y1+kS*1.2*oY, mx,y1+kS*1.3*oY);
+    p.bezierCurveTo(mx+kN*dX,y1+kS*1.2*oY, mx+kN*dX,y1, mx+kS*dX,y1);
     p.lineTo(x2,y2);
   } else {
-    // vertical edge
-    const outX = dir;
-    const dirY = y2>y1 ? 1 : -1;
-    p.lineTo(x1, my - kSize*dirY);
-    p.bezierCurveTo(
-      x1, my - kNeck*dirY,
-      x1 + kSize*1.2*outX, my - kNeck*dirY,
-      x1 + kSize*1.3*outX, my
-    );
-    p.bezierCurveTo(
-      x1 + kSize*1.2*outX, my + kNeck*dirY,
-      x1, my + kNeck*dirY,
-      x1, my + kSize*dirY
-    );
+    const oX=dir, dY=y2>y1?1:-1;
+    p.lineTo(x1, my-kS*dY);
+    p.bezierCurveTo(x1,my-kN*dY, x1+kS*1.2*oX,my-kN*dY, x1+kS*1.3*oX,my);
+    p.bezierCurveTo(x1+kS*1.2*oX,my+kN*dY, x1,my+kN*dY, x1,my+kS*dY);
     p.lineTo(x2,y2);
   }
 }
 
-// ---------- Rendering ----------
 function render(){
-  if (!state.started) return;
-  const r = canvas.getBoundingClientRect();
-  ctx.setTransform(dpr,0,0,dpr,0,0); // reset to dpr basis (CSS px)
+  if(!state.started) return;
+  const r=canvas.getBoundingClientRect();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,r.width,r.height);
-
-  // Draw board outline
-  ctx.save();
-  const tl = worldToScreen(0,0);
-  const br = worldToScreen(BOARD_W, BOARD_H);
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  ctx.strokeStyle = 'rgba(192,132,252,0.35)';
-  ctx.lineWidth = 2;
-  ctx.fillRect(tl.x, tl.y, br.x-tl.x, br.y-tl.y);
-  ctx.strokeRect(tl.x, tl.y, br.x-tl.x, br.y-tl.y);
-
-  // Grid guide (subtle)
-  const n = state.difficulty;
-  const pw = BOARD_W/n, ph = BOARD_H/n;
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 1;
-  for (let i=1;i<n;i++){
-    const a = worldToScreen(i*pw, 0), b = worldToScreen(i*pw, BOARD_H);
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    const c2 = worldToScreen(0, i*ph), d = worldToScreen(BOARD_W, i*ph);
-    ctx.beginPath(); ctx.moveTo(c2.x,c2.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+  const tl=w2s(0,0), br=w2s(BOARD_W,BOARD_H);
+  ctx.fillStyle='rgba(255,255,255,.025)';
+  ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=1;
+  ctx.fillRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y); ctx.strokeRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y);
+  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  ctx.strokeStyle='rgba(255,255,255,.04)';
+  for(let i=1;i<n;i++){
+    let a=w2s(i*pw,0), b=w2s(i*pw,BOARD_H); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    let c=w2s(0,i*ph), d=w2s(BOARD_W,i*ph); ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
   }
-
-  // Tray divider
-  const tA = worldToScreen(BOARD_W,0), tB = worldToScreen(BOARD_W, BOARD_H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '600 14px Nunito, sans-serif';
-  const trayMid = worldToScreen(BOARD_W+TRAY_W/2, 20);
-  ctx.textAlign='center'; ctx.fillText('🧩 Loose Pieces', trayMid.x, trayMid.y);
-
-  ctx.restore();
-
-  if (!state.imgEl){ requestAnimationFrame(render); return; }
-
-  // Sort pieces by z
-  const sorted = [...state.pieces].sort((a,b)=>a.z-b.z);
-
-  // Find mover color for each piece
-  const moverColor = id => {
-    const p = state.room?.players.find(x=>x.id===id);
-    return p ? p.color : null;
-  };
-
-  for (const p of sorted){
-    drawPiece(p, moverColor(p.lastMover));
-  }
-
-  // Hint glow
-  if (state.hintPiece){
-    const age = performance.now()-state.hintT;
-    if (age < 2500){
-      const p = state.pieces.find(x=>x.id===state.hintPiece);
-      if (p){
-        const s = worldToScreen(p.x, p.y);
-        const radius = Math.max(BOARD_W/n, BOARD_H/n)*state.scale*0.9;
-        const grad = ctx.createRadialGradient(s.x+radius/2, s.y+radius/2, 10, s.x+radius/2, s.y+radius/2, radius);
-        grad.addColorStop(0,'rgba(250,204,21,0.6)'); grad.addColorStop(1,'rgba(250,204,21,0)');
-        ctx.fillStyle=grad;
-        ctx.beginPath(); ctx.arc(s.x+radius/2,s.y+radius/2,radius,0,Math.PI*2); ctx.fill();
+  const tA=w2s(BOARD_W,0), tB=w2s(BOARD_W,BOARD_H);
+  ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
+  if(!state.imgEl){requestAnimationFrame(render); return;}
+  const sorted=[...state.pieces].sort((a,b)=>a.z-b.z);
+  const moverColor=id=>state.room?.players.find(x=>x.id===id)?.color;
+  for(const p of sorted) drawPiece(p, moverColor(p.lastMover));
+  if(state.hintPiece){
+    const age=performance.now()-state.hintT;
+    if(age<2000){
+      const p=state.pieces.find(x=>x.id===state.hintPiece);
+      if(p){
+        const s=w2s(p.x,p.y), rad=Math.max(pw,ph)*state.scale*.9;
+        const g=ctx.createRadialGradient(s.x+rad/2,s.y+rad/2,5,s.x+rad/2,s.y+rad/2,rad);
+        g.addColorStop(0,'rgba(245,158,11,.5)'); g.addColorStop(1,'rgba(245,158,11,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x+rad/2,s.y+rad/2,rad,0,Math.PI*2); ctx.fill();
       }
     } else state.hintPiece=null;
   }
-
-  // Draw my drag ghost highlight
-  if (state.dragging){
-    const p = state.pieces.find(x=>x.id===state.dragging.id);
-    if (p){
-      const n = state.difficulty;
-      const pw2 = BOARD_W/n;
-      const s = worldToScreen(p.x, p.y);
-      const size = pw2*state.scale;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(s.x-2, s.y-2, size+4, size+4);
-    }
-  }
-
   requestAnimationFrame(render);
 }
 
-function drawPiece(p, ownerColor){
-  const n = state.difficulty;
-  const pw = BOARD_W/n, ph = BOARD_H/n;
-  const row = Math.floor(p.id/n), col = p.id%n;
-  const sx = worldToScreen(p.x, p.y);
-
+function drawPiece(p, owner){
+  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const row=Math.floor(p.id/n), col=p.id%n, sx=w2s(p.x,p.y);
   ctx.save();
-  // Translate to piece screen position
-  ctx.translate(sx.x, sx.y);
-  ctx.scale(state.scale, state.scale);
-
-  // Shadow
-  if (!p.placed){
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = 14; ctx.shadowOffsetX=0; ctx.shadowOffsetY=6;
-  }
-
-  // Clip to piece path and draw the photo slice
-  const path = piecePaths[p.id];
-  ctx.save();
-  ctx.clip(path);
-  // Draw image so that piece's slot is at (0,0)
-  ctx.drawImage(state.imgEl, 0,0, state.imgEl.width, state.imgEl.height,
-                -col*pw, -row*ph, BOARD_W, BOARD_H);
+  ctx.translate(sx.x,sx.y); ctx.scale(state.scale,state.scale);
+  if(!p.placed){ ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4; }
+  const path=piecePaths[p.id];
+  ctx.save(); ctx.clip(path);
+  ctx.drawImage(state.imgEl,0,0,state.imgEl.width,state.imgEl.height,-col*pw,-row*ph,BOARD_W,BOARD_H);
   ctx.restore();
-
-  // Stroke outline
   ctx.shadowColor='transparent';
-  ctx.lineWidth = 2/state.scale;
-  ctx.strokeStyle = p.placed ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
+  ctx.lineWidth=1.5/state.scale;
+  ctx.strokeStyle = p.placed ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.4)';
   ctx.stroke(path);
-
-  // Owner glow
-  if (ownerColor && !p.placed){
-    ctx.strokeStyle = ownerColor;
-    ctx.lineWidth = 3/state.scale;
-    ctx.globalAlpha = 0.6;
-    ctx.stroke(path);
-    ctx.globalAlpha = 1;
-  }
-
+  if(owner&&!p.placed){ ctx.strokeStyle=owner; ctx.lineWidth=2/state.scale; ctx.globalAlpha=.7; ctx.stroke(path); ctx.globalAlpha=1; }
   ctx.restore();
 }
 
-// ---------- Input (mouse + touch) ----------
+// ---------- Input ----------
 let activePointer=null;
-canvas.addEventListener('pointerdown', onDown);
-canvas.addEventListener('pointermove', onMove);
-canvas.addEventListener('pointerup', onUp);
-canvas.addEventListener('pointercancel', onUp);
-canvas.addEventListener('wheel', onWheel, {passive:false});
+canvas.addEventListener('pointerdown',onDown);
+canvas.addEventListener('pointermove',onMove);
+canvas.addEventListener('pointerup',onUp);
+canvas.addEventListener('pointercancel',onUp);
+canvas.addEventListener('wheel',onWheel,{passive:false});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 function onDown(e){
-  if (!state.started) return;
-  canvas.setPointerCapture(e.pointerId);
-  activePointer = e.pointerId;
-  const {x,y} = screenToWorld(e.clientX, e.clientY);
-
-  // Right-click or two-finger = pan
-  if (e.button===2 || e.ctrlKey){ startPan(e); return; }
-
-  // Hit-test topmost piece under pointer (reverse z order)
-  const hit = hitPiece(x,y);
-  if (hit){
-    state.dragging = { id: hit.id, z: performance.now() };
-    // Bring to top
-    hit.z = 100000 + (performance.now()%10000);
-    state.dragOffX = x - hit.x;
-    state.dragOffY = y - hit.y;
-    canvas.classList.add('dragging');
-  } else {
-    startPan(e);
-  }
+  if(!state.started) return;
+  canvas.setPointerCapture(e.pointerId); activePointer=e.pointerId;
+  const {x,y}=s2w(e.clientX,e.clientY);
+  if(e.button===2||e.ctrlKey){ startPan(e); return; }
+  const hit=hitPiece(x,y);
+  if(hit){ state.dragging={id:hit.id}; hit.z=1e5+(performance.now()%1e4); state.dragOffX=x-hit.x; state.dragOffY=y-hit.y; canvas.classList.add('dragging'); }
+  else startPan(e);
 }
 function onMove(e){
-  if (!state.started) return;
-  const {x,y} = screenToWorld(e.clientX, e.clientY);
-
-  // Send cursor position to server so others see it? (Optional: not implemented to keep msgs tight — we can add)
-
-  if (state.panning){
-    state.offsetX = state.panOffX0 + (e.clientX - state.panStartX);
-    state.offsetY = state.panOffY0 + (e.clientY - state.panStartY);
-    return;
-  }
-  if (state.dragging){
-    const p = state.pieces.find(pp=>pp.id===state.dragging.id);
-    if (!p) return;
-    p.x = x - state.dragOffX;
-    p.y = y - state.dragOffY;
-    // Un-place if moved off slot (and server will re-place if close enough on release)
-    if (p.placed){
-      // allow moving it off
-      p.placed=false;
-    }
-    state.didDrag = true;
-    // Throttle sends
-    const now = performance.now();
-    if (!state.dragging.lastSend || now - state.dragging.lastSend > 30){
-      SOCKET.emit('movePiece', {id:p.id, x:p.x, y:p.y, z:p.z});
-      state.dragging.lastSend = now;
+  if(!state.started) return;
+  const {x,y}=s2w(e.clientX,e.clientY);
+  if(state.panning){ state.offsetX=state.panOffX0+(e.clientX-state.panStartX); state.offsetY=state.panOffY0+(e.clientY-state.panStartY); return; }
+  if(state.dragging){
+    const p=state.pieces.find(pp=>pp.id===state.dragging.id); if(!p) return;
+    p.x=x-state.dragOffX; p.y=y-state.dragOffY; if(p.placed) p.placed=false;
+    const now=performance.now();
+    if(!state.dragging.lastSend||now-state.dragging.lastSend>30){
+      SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z}); state.dragging.lastSend=now;
     }
   }
 }
 function onUp(e){
-  if (state.panning){ state.panning=false; canvas.classList.remove('panning'); return; }
-  if (state.dragging){
-    const p = state.pieces.find(pp=>pp.id===state.dragging.id);
-    canvas.classList.remove('dragging');
-    if (p){
-      // Snap to nearest slot within threshold
-      const n = state.difficulty;
-      const pw = BOARD_W/n, ph = BOARD_H/n;
-      const col = Math.round(p.x/pw), row = Math.round(p.y/ph);
-      if (col>=0&&col<n&&row>=0&&row>=0){
-        const slotX = col*pw, slotY = row*ph;
-        if (Math.abs(p.x-slotX)<pw*0.35 && Math.abs(p.y-slotY)<ph*0.35){
-          p.x=slotX; p.y=slotY; p.placed=true;
-        }
+  if(state.panning){ state.panning=false; canvas.classList.remove('panning'); return; }
+  if(state.dragging){
+    const p=state.pieces.find(pp=>pp.id===state.dragging.id); canvas.classList.remove('dragging');
+    if(p){
+      const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+      const col=Math.round(p.x/pw), row=Math.round(p.y/ph);
+      if(col>=0&&col<n&&row>=0&&row>=0){
+        const sx=col*pw, sy=row*ph;
+        if(Math.abs(p.x-sx)<pw*.35&&Math.abs(p.y-sy)<ph*.35){ p.x=sx; p.y=sy; p.placed=true; }
       }
-      SOCKET.emit('movePiece',{id:p.id, x:p.x, y:p.y, z:p.z});
+      SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z});
     }
-    state.dragging = null;
-    state.didDrag = false;
+    state.dragging=null;
   }
-  if (activePointer===e.pointerId) activePointer=null;
+  if(activePointer===e.pointerId) activePointer=null;
 }
-function startPan(e){
-  state.panning=true;
-  state.panStartX=e.clientX; state.panStartY=e.clientY;
-  state.panOffX0=state.offsetX; state.panOffY0=state.offsetY;
-  canvas.classList.add('panning');
-}
-function onWheel(e){
-  e.preventDefault();
-  const factor = e.deltaY<0 ? 1.1 : 0.9;
-  zoomAt(e.clientX, e.clientY, factor);
-}
-function zoomAt(sx, sy, factor){
-  const r = canvas.getBoundingClientRect();
-  const px = sx - r.left, py = sy - r.top;
-  const wx = (px - state.offsetX)/state.scale;
-  const wy = (py - state.offsetY)/state.scale;
-  state.scale = Math.max(0.3, Math.min(3, state.scale*factor));
-  state.offsetX = px - wx*state.scale;
-  state.offsetY = py - wy*state.scale;
+function startPan(e){ state.panning=true; state.panStartX=e.clientX; state.panStartY=e.clientY; state.panOffX0=state.offsetX; state.panOffY0=state.offsetY; canvas.classList.add('panning'); }
+function onWheel(e){ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; zoom(e.clientX,e.clientY,f); }
+function zoom(sx,sy,f){
+  const r=canvas.getBoundingClientRect(), px=sx-r.left, py=sy-r.top;
+  const wx=(px-state.offsetX)/state.scale, wy=(py-state.offsetY)/state.scale;
+  state.scale=Math.max(.3,Math.min(3,state.scale*f));
+  state.offsetX=px-wx*state.scale; state.offsetY=py-wy*state.scale;
 }
 
-function hitPiece(wx, wy){
-  // Reverse z order — hit test topmost first
-  const sorted = [...state.pieces].sort((a,b)=>b.z-a.z);
-  const n = state.difficulty;
-  const pw = BOARD_W/n, ph = BOARD_H/n;
-
-  // Use a clean identity transform in CSS-pixel space for hit testing
-  // (We must reset all transforms — ctx is left in dpr-scale state after render.)
-  ctx.save();
-  ctx.setTransform(1,0,0,1,0,0); // reset to CSS pixels (no dpr, no scale/offset)
-  for (const p of sorted){
-    // Quick bbox reject in world space
-    const margin = 20/state.scale;
-    if (wx < p.x - margin || wy < p.y - margin || wx > p.x+pw+margin || wy>p.y+ph+margin) continue;
-    // Translate/scale to piece-local coords in CSS-pixel space
-    const sx = p.x*state.scale + state.offsetX;
-    const sy = p.y*state.scale + state.offsetY;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.scale(state.scale, state.scale);
-    const lx = wx - p.x, ly = wy - p.y;
-    let ok = false;
-    try { ok = ctx.isPointInPath(piecePaths[p.id], lx, ly); } catch(e){}
+function hitPiece(wx,wy){
+  const sorted=[...state.pieces].sort((a,b)=>b.z-a.z);
+  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+  for(const p of sorted){
+    const m=20/state.scale;
+    if(wx<p.x-m||wy<p.y-m||wx>p.x+pw+m||wy>p.y+ph+m) continue;
+    const sx=p.x*state.scale+state.offsetX, sy=p.y*state.scale+state.offsetY;
+    ctx.save(); ctx.translate(sx,sy); ctx.scale(state.scale,state.scale);
+    let ok=false; try{ ok=ctx.isPointInPath(piecePaths[p.id],wx-p.x,wy-p.y); }catch(e){}
     ctx.restore();
-    if (ok){ ctx.restore(); return p; }
+    if(ok){ ctx.restore(); return p; }
   }
-  ctx.restore();
-  return null;
+  ctx.restore(); return null;
 }
 
-// Pinch zoom for touch
-let pinchStartDist=0, pinchStartScale=1;
-canvas.addEventListener('touchstart', e=>{
-  if (e.touches.length===2){
-    e.preventDefault();
-    const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
-    pinchStartDist=Math.hypot(dx,dy); pinchStartScale=state.scale;
-  }
-}, {passive:false});
-canvas.addEventListener('touchmove', e=>{
-  if (e.touches.length===2){
-    e.preventDefault();
-    const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
-    const d=Math.hypot(dx,dy);
-    if (pinchStartDist>0){
-      const factor = d/pinchStartDist;
-      state.scale = Math.max(0.3, Math.min(3, pinchStartScale*factor));
-      const mx=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      const my=(e.touches[0].clientY+e.touches[1].clientY)/2;
-      const r=canvas.getBoundingClientRect();
-      state.offsetX = mx - r.left - (BOARD_W/2+TRAY_W/2)*state.scale;
-      state.offsetY = my - r.top - (BOARD_H/2)*state.scale;
-    }
-  }
-}, {passive:false});
+// Pinch zoom
+let pD=0,pS=1;
+canvas.addEventListener('touchstart',e=>{ if(e.touches.length===2){e.preventDefault();
+  const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
+  pD=Math.hypot(dx,dy); pS=state.scale; }},{passive:false});
+canvas.addEventListener('touchmove',e=>{ if(e.touches.length===2){e.preventDefault();
+  const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
+  const d=Math.hypot(dx,dy); if(pD>0){
+    state.scale=Math.max(.3,Math.min(3,pS*d/pD));
+    const mx=(e.touches[0].clientX+e.touches[1].clientX)/2, my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    const r=canvas.getBoundingClientRect();
+    state.offsetX=mx-r.left-(BOARD_W/2+TRAY_W/2)*state.scale;
+    state.offsetY=my-r.top-(BOARD_H/2)*state.scale;
+  }}},{passive:false});
 
-// Prevent context menu on board
-canvas.addEventListener('contextmenu', e=>e.preventDefault());
+// ---------- Top bar ----------
+$('#shuffleBtn').addEventListener('click',()=>SOCKET.emit('shuffle'));
+$('#hintBtn').addEventListener('click',()=>SOCKET.emit('hint'));
+function pressRef(on){ $('#refOverlay').classList.toggle('show',on); $('#refImg').src=state.imageUrl; $('#refWho').textContent=on?'You\'re showing the photo':''; SOCKET.emit('viewPhoto',{on}); }
+$('#refBtn').addEventListener('mousedown',()=>pressRef(true));
+$('#refBtn').addEventListener('mouseup',()=>pressRef(false));
+$('#refBtn').addEventListener('mouseleave',()=>pressRef(false));
+$('#refBtn').addEventListener('touchstart',e=>{e.preventDefault(); pressRef(true);});
+$('#refBtn').addEventListener('touchend',()=>pressRef(false));
+$('#refClose').addEventListener('click',()=>pressRef(false));
+$('#menuBtn').addEventListener('click',()=>{ if(confirm('Return to lobby?')&&state.isHost) SOCKET.emit('restart'); });
 
-// ---------- Top bar buttons ----------
-$('#shuffleBtn').addEventListener('click', ()=>SOCKET.emit('shuffle'));
-$('#hintBtn').addEventListener('click', ()=>SOCKET.emit('hint'));
-$('#refBtn').addEventListener('mousedown', ()=>{
-  $('#refOverlay').classList.add('show');
-  $('#refImg').src = state.imageUrl;
-  $('#refWho').textContent = 'You are showing the photo';
-  SOCKET.emit('viewPhoto',{on:true});
-});
-$('#refBtn').addEventListener('mouseup', closeRef);
-$('#refBtn').addEventListener('mouseleave', closeRef);
-$('#refBtn').addEventListener('touchstart', (e)=>{e.preventDefault();$('#refOverlay').classList.add('show');$('#refImg').src=state.imageUrl;$('#refWho').textContent='You are showing the photo';SOCKET.emit('viewPhoto',{on:true});});
-$('#refBtn').addEventListener('touchend', closeRef);
-function closeRef(){ $('#refOverlay').classList.remove('show'); SOCKET.emit('viewPhoto',{on:false}); }
-$('#refClose').addEventListener('click', closeRef);
-
-$('#menuBtn').addEventListener('click', ()=>{
-  const c = confirm('Back to lobby? Only the host can fully restart.');
-  if (c && state.isHost){ SOCKET.emit('restart'); }
-  else if (c){ toast('Only the host can restart'); }
-});
-
-// ---------- Confetti ----------
+// ---------- Confetti (subtle) ----------
 function confetti(){
-  const colors = ['#ff6b9d','#c084fc','#60a5fa','#34d399','#facc15','#fb923c'];
-  for (let i=0;i<80;i++){
-    const d = document.createElement('div');
-    d.style.cssText = `position:fixed;left:${Math.random()*100}vw;top:-20px;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()<.5?'50%':'2px'};z-index:200;transform:rotate(${Math.random()*360}deg);transition:transform 3s linear,top 3s linear,opacity 3s;opacity:1;`;
+  const colors=['#f59e0b','#fbbf24','#3b82f6','#22c55e','#ec4899','#a855f7'];
+  for(let i=0;i<60;i++){
+    const d=document.createElement('div');
+    d.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:-10px;width:8px;height:8px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()<.5?'50%':'2px'};
+      z-index:200;pointer-events:none;opacity:1;transition:transform 2.5s cubic-bezier(.2,.6,.4,1),top 2.5s ease,opacity 2.5s;`;
     document.body.appendChild(d);
-    requestAnimationFrame(()=>{
-      d.style.top = '110vh';
-      d.style.transform = `rotate(${Math.random()*720}deg) translateX(${(Math.random()-.5)*200}px)`;
-      d.style.opacity = '0';
-    });
-    setTimeout(()=>d.remove(),3500);
+    requestAnimationFrame(()=>{ d.style.top='105vh';
+      d.style.transform=`translateX(${(Math.random()-.5)*160}px) rotate(${Math.random()*720}deg)`; d.style.opacity='0'; });
+    setTimeout(()=>d.remove(),2700);
   }
 }
 
-// Initial canvas size (after layout)
-setTimeout(()=>{ resizeCanvas(); },50);
-
-// ---------- Serve image via GET for guests (needs server route) ----------
-// We add a tiny server route; since client can't influence server, server already has the handler.
-// Leaving as note for server.js — we'll add it there.
+setTimeout(resizeCanvas,50);
 </script>
-
 </body>
 </html>
