@@ -857,10 +857,17 @@ function startGame(room){
   state.started=true; state.pieces=room.pieces.map(p=>({...p})); state.difficulty=room.difficulty;
   $('#lobby').style.display='none'; $('#gameWrap').classList.add('active');
   $('#sidePanel').classList.remove('open');
+  // Force layout reflow
+  void document.body.offsetHeight;
   imgEl=new Image();
   imgEl.onload=()=>{
-    state.imgEl=imgEl; precomputePaths(); resizeCanvas(); fitView(); render(); startTimer();
-    addMsg({sys:true,text:'Game started. Drag pieces onto the board.'});
+    state.imgEl=imgEl; precomputePaths();
+    // Double-RAF so CSS transitions/layout settle
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      resizeCanvas(); fitView(); render(); startTimer();
+      addMsg({sys:true,text:'Game started — drag pieces from the right onto the board.'});
+      console.log('[jigsaw] started. scale=',state.scale,'offX=',state.offsetX,'offY=',state.offsetY,'pieces=',state.pieces.length);
+    }));
   };
   if(state.imageUrl&&state.isHost){ imgEl.src=state.imageUrl; }
   else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>imgEl.src=d); else toast('Failed to load image.'); });
@@ -1029,6 +1036,7 @@ function onDown(e){
   const {x,y}=s2w(e.clientX,e.clientY);
   if(e.button===2||e.ctrlKey){ startPan(e); return; }
   const hit=hitPiece(x,y);
+  console.log('pointerdown world=',x.toFixed(0),y.toFixed(0),'hit=',hit?.id,'pieces=',state.pieces.length,'scale=',state.scale.toFixed(3));
   if(hit){ state.dragging={id:hit.id}; hit.z=1e5+(performance.now()%1e4); state.dragOffX=x-hit.x; state.dragOffY=y-hit.y; canvas.classList.add('dragging'); }
   else startPan(e);
 }
@@ -1071,20 +1079,31 @@ function zoom(sx,sy,f){
   state.offsetX=px-wx*state.scale; state.offsetY=py-wy*state.scale;
 }
 
+let hoverId=-1;
 function hitPiece(wx,wy){
   const sorted=[...state.pieces].sort((a,b)=>b.z-a.z);
   const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+  const tabPad=Math.min(pw,ph)*0.28;
+  // Use a SECOND offscreen transform — reset cleanly
+  ctx.save();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  hoverId=-1;
   for(const p of sorted){
-    const m=20/state.scale;
-    if(wx<p.x-m||wy<p.y-m||wx>p.x+pw+m||wy>p.y+ph+m) continue;
-    const sx=p.x*state.scale+state.offsetX, sy=p.y*state.scale+state.offsetY;
-    ctx.save(); ctx.translate(sx,sy); ctx.scale(state.scale,state.scale);
-    let ok=false; try{ ok=ctx.isPointInPath(piecePaths[p.id],wx-p.x,wy-p.y); }catch(e){}
+    if(wx<p.x-tabPad||wy<p.y-tabPad||wx>p.x+pw+tabPad||wy>p.y+ph+tabPad) continue;
+    const lx=wx-p.x, ly=wy-p.y;
+    ctx.save();
+    // translate to piece position in CSS pixels
+    const sx=p.x*state.scale+state.offsetX;
+    const sy=p.y*state.scale+state.offsetY;
+    ctx.translate(sx, sy);
+    ctx.scale(state.scale, state.scale);
+    let ok=false;
+    try{ ok=ctx.isPointInPath(piecePaths[p.id], lx, ly, 'nonzero'); }catch(e){}
     ctx.restore();
-    if(ok){ ctx.restore(); return p; }
+    if(ok){ hoverId=p.id; ctx.restore(); return p; }
   }
-  ctx.restore(); return null;
+  ctx.restore();
+  return null;
 }
 
 // Pinch zoom
@@ -1129,7 +1148,14 @@ function confetti(){
   }
 }
 
-setTimeout(resizeCanvas,50);
+function initCanvas(){ resizeCanvas(); }
+setTimeout(initCanvas, 50);
+window.addEventListener('load', initCanvas);
+if(window.ResizeObserver){
+  new ResizeObserver(()=>resizeCanvas()).observe(document.body);
+}
+// Debug: click logging — remove later
+window._dbgHits = 0;
 </script>
 </body>
 </html>
