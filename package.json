@@ -1,0 +1,18 @@
+{
+  "name": "jigsaw-together",
+  "version": "1.0.0",
+  "description": "🧩 Real-time multiplayer jigsaw puzzle — play with your GF, bestie, or friends by sharing a link 💞",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "license": "MIT"
+}
