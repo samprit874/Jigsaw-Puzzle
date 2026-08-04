@@ -1032,13 +1032,14 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 function onDown(e){
   if(!state.started) return;
-  canvas.setPointerCapture(e.pointerId); activePointer=e.pointerId;
   const {x,y}=s2w(e.clientX,e.clientY);
   if(e.button===2||e.ctrlKey){ startPan(e); return; }
   const hit=hitPiece(x,y);
   console.log('pointerdown world=',x.toFixed(0),y.toFixed(0),'hit=',hit?.id,'pieces=',state.pieces.length,'scale=',state.scale.toFixed(3));
-  if(hit){ state.dragging={id:hit.id}; hit.z=1e5+(performance.now()%1e4); state.dragOffX=x-hit.x; state.dragOffY=y-hit.y; canvas.classList.add('dragging'); }
-  else startPan(e);
+  if(hit){
+    canvas.setPointerCapture(e.pointerId); activePointer=e.pointerId;
+    state.dragging={id:hit.id}; hit.z=1e5+(performance.now()%1e4); state.dragOffX=x-hit.x; state.dragOffY=y-hit.y; canvas.classList.add('dragging');
+  } else { startPan(e); }
 }
 function onMove(e){
   if(!state.started) return;
@@ -1084,31 +1085,29 @@ function hitPiece(wx,wy){
   const sorted=[...state.pieces].sort((a,b)=>b.z-a.z);
   const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
   const tabPad=Math.min(pw,ph)*0.28;
-  // Use a SECOND offscreen transform — reset cleanly
-  ctx.save();
-  ctx.setTransform(dpr,0,0,dpr,0,0);
   hoverId=-1;
   for(const p of sorted){
     if(wx<p.x-tabPad||wy<p.y-tabPad||wx>p.x+pw+tabPad||wy>p.y+ph+tabPad) continue;
     const lx=wx-p.x, ly=wy-p.y;
-    ctx.save();
-    // translate to piece position in CSS pixels
-    const sx=p.x*state.scale+state.offsetX;
-    const sy=p.y*state.scale+state.offsetY;
-    ctx.translate(sx, sy);
-    ctx.scale(state.scale, state.scale);
+    // Use DOMMatrix for reliable hit testing without touching the canvas state
+    const matrix={a:state.scale, b:0, c:0, d:state.scale, e:p.x*state.scale+state.offsetX, f:p.y*state.scale+state.offsetY};
     let ok=false;
-    try{ ok=ctx.isPointInPath(piecePaths[p.id], lx, ly, 'nonzero'); }catch(e){}
-    ctx.restore();
-    if(ok){ hoverId=p.id; ctx.restore(); return p; }
+    try{ ok=ctx.isPointInPath(piecePaths[p.id], lx, ly, 'nonzero', matrix); }catch(e){}
+    if(ok){ hoverId=p.id; return p; }
   }
-  ctx.restore();
   return null;
 }
 
 // Pinch zoom
 let pD=0,pS=1;
 canvas.addEventListener('touchstart',e=>{ if(e.touches.length===2){e.preventDefault();
+  // Cancel any ongoing drag when pinch starts
+  if(state.dragging){
+    const p=state.pieces.find(pp=>pp.id===state.dragging.id);
+    if(p) SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z});
+    state.dragging=null; canvas.classList.remove('dragging');
+  }
+  state.panning=false; canvas.classList.remove('panning');
   const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
   pD=Math.hypot(dx,dy); pS=state.scale; }},{passive:false});
 canvas.addEventListener('touchmove',e=>{ if(e.touches.length===2){e.preventDefault();
@@ -1152,7 +1151,10 @@ function initCanvas(){ resizeCanvas(); }
 setTimeout(initCanvas, 50);
 window.addEventListener('load', initCanvas);
 if(window.ResizeObserver){
-  new ResizeObserver(()=>resizeCanvas()).observe(document.body);
+  new ResizeObserver(()=>{
+    resizeCanvas();
+    if(state.started){ fitView(); render(); }
+  }).observe($('#canvasWrap'));
 }
 // Debug: click logging — remove later
 window._dbgHits = 0;
