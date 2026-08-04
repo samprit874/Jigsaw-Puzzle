@@ -1067,6 +1067,7 @@ function addEdge(p, x1,y1, x2,y2, edgeLen, dir, k, vertical=false){
 function render(){
   if (!state.started) return;
   const r = canvas.getBoundingClientRect();
+  ctx.setTransform(dpr,0,0,dpr,0,0); // reset to dpr basis (CSS px)
   ctx.clearRect(0,0,r.width,r.height);
 
   // Draw board outline
@@ -1136,8 +1137,10 @@ function render(){
   if (state.dragging){
     const p = state.pieces.find(x=>x.id===state.dragging.id);
     if (p){
+      const n = state.difficulty;
+      const pw2 = BOARD_W/n;
       const s = worldToScreen(p.x, p.y);
-      const size = pw*state.scale;
+      const size = pw2*state.scale;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 3;
       ctx.strokeRect(s.x-2, s.y-2, size+4, size+4);
@@ -1296,24 +1299,32 @@ function zoomAt(sx, sy, factor){
 }
 
 function hitPiece(wx, wy){
-  // Reverse z order
+  // Reverse z order — hit test topmost first
   const sorted = [...state.pieces].sort((a,b)=>b.z-a.z);
   const n = state.difficulty;
   const pw = BOARD_W/n, ph = BOARD_H/n;
+
+  // Use a clean identity transform in CSS-pixel space for hit testing
+  // (We must reset all transforms — ctx is left in dpr-scale state after render.)
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0); // reset to CSS pixels (no dpr, no scale/offset)
   for (const p of sorted){
-    // quick bbox
-    if (wx < p.x - 20 || wy < p.y - 20 || wx > p.x+pw+20 || wy>p.y+ph+20) continue;
+    // Quick bbox reject in world space
+    const margin = 20/state.scale;
+    if (wx < p.x - margin || wy < p.y - margin || wx > p.x+pw+margin || wy>p.y+ph+margin) continue;
+    // Translate/scale to piece-local coords in CSS-pixel space
+    const sx = p.x*state.scale + state.offsetX;
+    const sy = p.y*state.scale + state.offsetY;
     ctx.save();
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    // Use isPointInPath with the local coords translated
-    const sp = worldToScreen(p.x, p.y);
-    ctx.translate(sp.x*dpr, sp.y*dpr);
-    ctx.scale(state.scale*dpr, state.scale*dpr);
-    const lx = (wx - p.x), ly = (wy - p.y);
-    const ok = ctx.isPointInPath(piecePaths[p.id], lx, ly);
+    ctx.translate(sx, sy);
+    ctx.scale(state.scale, state.scale);
+    const lx = wx - p.x, ly = wy - p.y;
+    let ok = false;
+    try { ok = ctx.isPointInPath(piecePaths[p.id], lx, ly); } catch(e){}
     ctx.restore();
-    if (ok) return p;
+    if (ok){ ctx.restore(); return p; }
   }
+  ctx.restore();
   return null;
 }
 
