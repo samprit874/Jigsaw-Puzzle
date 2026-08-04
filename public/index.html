@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🧩 Jigsaw Together — Play with your people 💞</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --pink:#ff6b9d; --purple:#c084fc; --blue:#60a5fa; --green:#34d399;
+    --bg0:#0f0c29; --bg1:#302b63; --bg2:#24243e;
+    --glass: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.15);
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Nunito', sans-serif; color: #fff;
+    background: linear-gradient(135deg, var(--bg0), var(--bg1), var(--bg2));
+    background-size: 400% 400%; animation: bgShift 18s ease infinite;
+  }
+  @keyframes bgShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+
+  /* Floating hearts */
+  .hearts { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .hearts span { position:absolute; bottom:-30px; font-size:22px; opacity:.35; animation: rise linear infinite; }
+  @keyframes rise {
+    0%{transform:translateY(0) rotate(0);opacity:0}
+    10%{opacity:.4}
+    100%{transform:translateY(-110vh) rotate(720deg);opacity:0}
+  }
+
+  .app { position: relative; z-index: 1; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; padding: 12px; }
+
+  /* ----- Lobby ----- */
+  .lobby {
+    width: 100%; max-width: 720px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px); border-radius: 28px;
+    padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    max-height: calc(100vh - 24px); overflow-y: auto;
+  }
+  .logo {
+    font-family: 'Fredoka One', cursive; font-size: clamp(2em, 6vw, 3.2em);
+    background: linear-gradient(45deg, var(--pink), var(--purple), var(--blue), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    text-align: center; animation: pulseGlow 2.2s ease-in-out infinite;
+  }
+  @keyframes pulseGlow { 0%,100%{filter:drop-shadow(0 0 8px rgba(192,132,252,.4));transform:scale(1)} 50%{filter:drop-shadow(0 0 22px rgba(192,132,252,.75));transform:scale(1.02)} }
+  .tagline { text-align:center; color:#d8b4fe; margin: 6px 0 22px; font-weight:600; }
+
+  .tabs { display:flex; gap:8px; margin-bottom:18px; }
+  .tab { flex:1; padding:12px; text-align:center; background: rgba(255,255,255,.06); border:1px solid var(--glass-border); border-radius: 14px; cursor:pointer; font-weight:700; transition:all .2s; }
+  .tab.active { background: linear-gradient(45deg, rgba(255,107,157,.35), rgba(192,132,252,.35)); border-color: var(--purple); }
+
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  label { display:block; font-size:.85rem; color:#c4b5fd; margin: 12px 0 6px; font-weight:600; }
+  input[type=text], input[type=file] {
+    width:100%; padding:12px 14px; border-radius:12px;
+    background: rgba(255,255,255,.07); border:1px solid var(--glass-border);
+    color:#fff; font-family:inherit; font-size:1rem; outline:none;
+  }
+  input[type=text]:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(192,132,252,.2); }
+
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding: 12px 18px; border-radius:14px; border:none; cursor:pointer;
+    font-family:inherit; font-weight:700; font-size:1rem; color:#fff;
+    background: linear-gradient(45deg, var(--pink), var(--purple));
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+    box-shadow: 0 8px 24px rgba(192,132,252,.35);
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(192,132,252,.5); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn.ghost { background: rgba(255,255,255,.08); box-shadow:none; border:1px solid var(--glass-border); }
+  .btn.green { background: linear-gradient(45deg,#34d399,#10b981); box-shadow:0 8px 24px rgba(52,211,153,.35); }
+  .btn.full { width:100%; }
+  .btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+
+  .difficulty { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-top:6px; }
+  .diff {
+    padding: 14px 6px; text-align:center; background:rgba(255,255,255,.06); border:1px solid var(--glass-border);
+    border-radius: 12px; cursor:pointer; transition: all .2s; font-weight:700;
+  }
+  .diff small { display:block; font-size:.72rem; color:#c4b5fd; font-weight:600; margin-top:2px; }
+  .diff.active { background: linear-gradient(45deg, rgba(96,165,250,.35), rgba(192,132,252,.35)); border-color: var(--blue); transform: scale(1.04); }
+
+  .upload-zone {
+    border: 3px dashed rgba(192,132,252,.5); border-radius:18px; padding: 26px; text-align:center;
+    background: rgba(255,255,255,.04); cursor:pointer; transition: all .2s; margin-top:6px;
+  }
+  .upload-zone:hover { border-color: var(--purple); background: rgba(192,132,252,.08); }
+  .upload-zone .icon { font-size: 2.5em; margin-bottom:6px; }
+  .preview-wrap { margin-top:14px; text-align:center; }
+  .preview-wrap img { max-width:100%; max-height: 260px; border-radius:14px; border:2px solid var(--glass-border); }
+
+  .room-code {
+    font-family: 'Fredoka One', cursive; font-size: 2.6rem; letter-spacing: 8px;
+    text-align:center; padding: 14px; border-radius:14px;
+    background: linear-gradient(45deg, rgba(255,107,157,.2), rgba(192,132,252,.2));
+    border: 2px dashed var(--purple); margin: 10px 0 6px; user-select:all;
+  }
+  .share-link {
+    padding:10px 12px; background: rgba(0,0,0,.3); border-radius:10px; font-family: monospace; font-size:.85rem;
+    word-break:break-all; border:1px solid var(--glass-border); margin-top:8px;
+  }
+  .players { margin-top:14px; }
+  .player {
+    display:flex; align-items:center; gap:10px; padding:10px 12px; background: rgba(255,255,255,.06);
+    border-radius:12px; margin-bottom:6px; border-left:4px solid var(--purple);
+  }
+  .player .avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.3em; flex-shrink:0; }
+  .player .name { font-weight:700; flex:1; }
+  .player .you { font-size:.7rem; background: var(--purple); padding:2px 8px; border-radius:10px; }
+  .player .host { font-size:.7rem; background: var(--pink); padding:2px 8px; border-radius:10px; }
+  .color-pick { display:flex; gap:6px; margin-top:8px; }
+  .color-dot { width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all .15s; }
+  .color-dot.sel { border-color:#fff; transform:scale(1.15); }
+
+  .samples { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:8px; }
+  .sample { border-radius:10px; aspect-ratio:1; cursor:pointer; overflow:hidden; border:2px solid transparent; transition:all .2s; }
+  .sample.sel { border-color: var(--purple); transform: scale(1.03); }
+  .sample canvas { width:100%; height:100%; display:block; }
+
+  /* ----- Game ----- */
+  .game-wrap { position: fixed; inset:0; display:none; flex-direction:column; z-index: 5; }
+  .game-wrap.active { display:flex; }
+
+  .topbar {
+    display:flex; align-items:center; gap:10px; padding: 10px 14px;
+    background: rgba(15,12,41,.7); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--glass-border); flex-wrap:wrap;
+  }
+  .stat {
+    background: rgba(255,255,255,.06); padding:6px 12px; border-radius:10px; font-weight:700; font-size:.9rem;
+    display:flex; align-items:center; gap:6px;
+  }
+  .spacer { flex:1; }
+  .icon-btn {
+    width:40px; height:40px; border-radius:10px; background: rgba(255,255,255,.08); border:1px solid var(--glass-border);
+    color:#fff; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,.15); }
+
+  .play-area { flex:1; position:relative; overflow:hidden; display:flex; }
+  .canvas-wrap { flex:1; position:relative; overflow:hidden; background:
+    radial-gradient(ellipse at top, rgba(192,132,252,.12), transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(255,107,157,.12), transparent 60%),
+    rgba(15,12,41,.5);
+  }
+  #board { position:absolute; inset:0; width:100%; height:100%; cursor: grab; touch-action:none; }
+  #board.dragging { cursor: grabbing; }
+  #board.panning { cursor: grabbing; }
+
+  .side {
+    width: 240px; background: rgba(15,12,41,.7); backdrop-filter: blur(14px);
+    border-left:1px solid var(--glass-border); display:flex; flex-direction:column;
+    transition: transform .25s;
+  }
+  @media (max-width: 760px) {
+    .side { position:absolute; right:0; top:0; bottom:0; width: 260px; transform: translateX(100%); z-index:20; }
+    .side.open { transform: translateX(0); }
+  }
+  .side h3 { padding: 10px 14px; font-size:.85rem; color:#c4b5fd; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--glass-border); }
+  .chat-box { flex:1; overflow-y:auto; padding: 10px; display:flex; flex-direction:column; gap:6px; }
+  .chat-msg { font-size:.85rem; line-height:1.35; word-wrap:break-word; }
+  .chat-msg .who { font-weight:800; }
+  .chat-msg.system { color:#c4b5fd; font-style:italic; font-size:.8rem; text-align:center; }
+  .chat-input { display:flex; gap:6px; padding:8px; border-top:1px solid var(--glass-border); }
+  .chat-input input { flex:1; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.08); border:1px solid var(--glass-border); color:#fff; outline:none; font-family:inherit; }
+  .chat-input button { width:36px; height:36px; border-radius:10px; border:none; background: linear-gradient(45deg,var(--pink),var(--purple)); color:#fff; cursor:pointer; font-size:1.1rem; }
+
+  .player-list-side { padding: 8px; display:flex; flex-direction:column; gap:6px; max-height: 220px; overflow-y:auto; border-bottom:1px solid var(--glass-border); }
+  .p-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background: rgba(255,255,255,.05); font-size:.85rem; }
+  .p-row .av { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+  .p-row .nm { flex:1; font-weight:700; }
+  .p-row .cnt { font-size:.75rem; color:#c4b5fd; }
+
+  .progress { height: 6px; background: rgba(255,255,255,.08); border-radius: 4px; overflow:hidden; margin: 4px 14px 10px; }
+  .progress > div { height:100%; background: linear-gradient(90deg, var(--pink), var(--purple), var(--blue), var(--green)); width:0%; transition: width .3s; }
+
+  /* Reference overlay */
+  .ref-overlay {
+    position:fixed; inset:0; background: rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index: 50;
+    padding: 20px;
+  }
+  .ref-overlay.show { display:flex; }
+  .ref-overlay img { max-width:90%; max-height:90%; border-radius:14px; border:3px solid var(--purple); box-shadow:0 0 80px rgba(192,132,252,.5); }
+  .ref-overlay .close { position:absolute; top:16px; right:20px; font-size:2rem; cursor:pointer; }
+  .ref-overlay .who { position:absolute; bottom:20px; color:#c4b5fd; }
+
+  /* Win modal */
+  .modal {
+    position:fixed; inset:0; background: rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index: 60; padding: 20px;
+  }
+  .modal.show { display:flex; }
+  .modal-card {
+    background: linear-gradient(135deg, #2a1a4a, #4a1f5a); padding: 30px; border-radius:24px; text-align:center;
+    border: 2px solid var(--purple); max-width: 420px; width:100%; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  .modal-card h2 { font-family:'Fredoka One',cursive; font-size:2.4rem; margin-bottom:10px;
+    background: linear-gradient(45deg,var(--pink),var(--purple),var(--blue),var(--green));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .modal-card p { margin-bottom:18px; color:#d8b4fe; }
+
+  .toast {
+    position:fixed; bottom: 20px; left:50%; transform: translateX(-50%) translateY(100px);
+    background: rgba(0,0,0,.85); color:#fff; padding: 10px 18px; border-radius:12px; z-index:100;
+    border:1px solid var(--glass-border); transition: transform .3s; font-weight:600;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .cursors { position:absolute; inset:0; pointer-events:none; }
+  .cursors .cur {
+    position:absolute; transform: translate(-2px,-2px); transition: left .08s linear, top .08s linear;
+    font-size: 1.6rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); z-index: 9999;
+  }
+  .cursors .cur .lbl {
+    position:absolute; left: 14px; top: 14px; padding: 2px 8px; border-radius:10px; font-size:.7rem; font-weight:800;
+    color:#fff; white-space:nowrap;
+  }
+
+  .hidden { display:none !important; }
+
+  @media (max-width: 600px) {
+    .lobby { padding: 18px; border-radius: 20px; }
+    .difficulty { grid-template-columns: repeat(2,1fr); }
+    .topbar .stat { padding:4px 8px; font-size:.78rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hearts" id="hearts"></div>
+
+<div class="app" id="app">
+
+  <!-- ============== LOBBY ============== -->
+  <div class="lobby" id="lobby">
+    <div class="logo">🧩 Jigsaw Together</div>
+    <div class="tagline">Piece together memories with your favorite people 💞</div>
+
+    <div id="preTabs">
+      <div class="tabs">
+        <div class="tab active" data-tab="create">✨ Create Room</div>
+        <div class="tab" data-tab="join">🎟️ Join Room</div>
+      </div>
+
+      <div class="panel active" id="panel-create">
+        <label>Your Name</label>
+        <input type="text" id="hostName" placeholder="e.g. Samprit" maxlength="16" />
+
+        <label>Choose Difficulty</label>
+        <div class="difficulty" id="diffPick">
+          <div class="diff" data-n="3">🌸 Easy<small>3×3 · 9 pcs</small></div>
+          <div class="diff active" data-n="4">⭐ Medium<small>4×4 · 16 pcs</small></div>
+          <div class="diff" data-n="5">🔥 Hard<small>5×5 · 25 pcs</small></div>
+          <div class="diff" data-n="6">💀 Expert<small>6×6 · 36 pcs</small></div>
+        </div>
+
+        <label>Pick a Sample Photo (or upload your own)</label>
+        <div class="samples" id="samples"></div>
+
+        <label>Upload Your Photo 📸</label>
+        <div class="upload-zone" id="uploadZone">
+          <div class="icon">📷</div>
+          <div><strong>Tap to upload</strong> or drag &amp; drop</div>
+          <div style="font-size:.85rem;color:#c4b5fd;margin-top:4px;">Selfies, memories, anything you both love!</div>
+          <input type="file" id="fileInput" accept="image/*" hidden />
+        </div>
+        <div class="preview-wrap" id="previewWrap" style="display:none">
+          <img id="previewImg" alt="preview" />
+        </div>
+
+        <div class="btn-row">
+          <button class="btn full" id="createBtn">💖 Create Room &amp; Invite</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-join">
+        <label>Your Name</label>
+        <input type="text" id="joinName" placeholder="e.g. Babe 💖" maxlength="16" />
+
+        <label>Room Code</label>
+        <input type="text" id="joinCode" placeholder="e.g. A1B2C" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-family:'Fredoka One',cursive;font-size:1.4rem;" />
+
+        <div class="btn-row">
+          <button class="btn full green" id="joinBtn">🚪 Join the Puzzle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobby waiting room (shown after creating/joining) -->
+    <div id="inLobby" style="display:none">
+      <div class="room-code" id="roomCode">ABCDE</div>
+      <div class="share-link" id="shareLink">—</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="copyLinkBtn">📋 Copy Invite Link</button>
+      </div>
+
+      <label>Your Name</label>
+      <input type="text" id="myName" maxlength="16" />
+
+      <label>Pick Your Color</label>
+      <div class="color-pick" id="colorPick"></div>
+
+      <label style="margin-top:16px">People in Room (<span id="playerCount">1</span>/6)</label>
+      <div class="players" id="playersList"></div>
+
+      <div id="hostControls" style="display:none">
+        <label>Difficulty</label>
+        <div class="difficulty" id="diffPick2">
+          <div class="diff" data-n="3">🌸 Easy<small>9 pcs</small></div>
+          <div class="diff active" data-n="4">⭐ Medium<small>16 pcs</small></div>
+          <div class="diff" data-n="5">🔥 Hard<small>25 pcs</small></div>
+          <div class="diff" data-n="6">💀 Expert<small>36 pcs</small></div>
+        </div>
+
+        <label>Pick a Sample Photo</label>
+        <div class="samples" id="samples2"></div>
+
+        <label>Upload Your Photo</label>
+        <div class="upload-zone" id="uploadZone2">
+          <div class="icon">📷</div>
+          <div><strong>Tap to upload</strong> or drag &amp; drop</div>
+          <input type="file" id="fileInput2" accept="image/*" hidden />
+        </div>
+        <div class="preview-wrap" id="previewWrap2" style="display:none">
+          <img id="previewImg2" alt="preview" />
+        </div>
+
+        <div class="btn-row">
+          <button class="btn full green" id="startBtn" disabled>🧩 Let's Play! (wait for photo)</button>
+        </div>
+      </div>
+
+      <div id="guestControls" style="display:none; text-align:center; margin-top:18px; padding:20px; background:rgba(255,255,255,.05); border-radius:14px;">
+        <div style="font-size:2rem">⏳</div>
+        <div style="font-weight:700; margin-top:6px">Waiting for host to start…</div>
+        <div style="color:#c4b5fd; font-size:.85rem">Chat with them in the side panel once the game starts!</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn ghost full" id="leaveBtn">🚪 Leave Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== GAME ============== -->
+  <div class="game-wrap" id="gameWrap">
+    <div class="topbar">
+      <div class="stat">⏱️ <span id="timer">00:00</span></div>
+      <div class="stat">🧩 <span id="progress">0/0</span></div>
+      <div class="stat">🧑‍🤝‍🧑 <span id="onlineCount">1</span></div>
+      <div class="stat" style="background:linear-gradient(45deg,rgba(255,107,157,.25),rgba(192,132,252,.25));border:1px solid var(--purple)">🎟️ <span id="codeMini">—</span></div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="shuffleBtn" title="Shuffle loose pieces">🔀</button>
+      <button class="icon-btn" id="hintBtn" title="Flash one piece's spot">💡</button>
+      <button class="icon-btn" id="refBtn" title="Show reference photo">🖼️</button>
+      <button class="icon-btn" id="chatBtn" title="Toggle chat">💬</button>
+      <button class="icon-btn" id="menuBtn" title="Menu">☰</button>
+    </div>
+    <div class="progress"><div id="progBar"></div></div>
+
+    <div class="play-area">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="board"></canvas>
+        <div class="cursors" id="cursors"></div>
+      </div>
+      <aside class="side" id="sidePanel">
+        <div class="player-list-side" id="playerListSide"></div>
+        <h3>💬 Chat</h3>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Say something sweet… 💞" maxlength="200" />
+          <button id="chatSend">➤</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="ref-overlay" id="refOverlay">
+  <div class="close" id="refClose">✕</div>
+  <img id="refImg" alt="reference" />
+  <div class="who" id="refWho"></div>
+</div>
+
+<div class="modal" id="winModal">
+  <div class="modal-card">
+    <h2>🎉 You Did It! 🎉</h2>
+    <p id="winText">Together, you finished the puzzle!</p>
+    <p style="font-size:.9rem">⏱️ Time: <strong id="winTime">00:00</strong></p>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn" id="playAgainBtn">🔄 Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Hi!</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+/* =====================================================================
+   🧩 JIGSAW TOGETHER — Client
+   - Real-time multiplayer via Socket.IO
+   - Canvas-rendered board with pan/zoom
+   - Pieces: image sliced on-the-fly with jigsaw tabs/knobs drawn as masks
+   ===================================================================== */
+
+const SOCKET = io({ transports: ['websocket','polling'] });
+const BOARD_W = 1000, BOARD_H = 1000; // logical board coords (match server)
+const TRAY_W = 400; // extra to the right for scattered pieces
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+
+// ---------- Hearts background ----------
+(function hearts(){
+  const hb = $('#hearts');
+  const emojis = ['💖','💜','💙','💚','🧡','💛','✨','💕'];
+  for (let i=0;i<22;i++){
+    const s = document.createElement('span');
+    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.left = Math.random()*100 + '%';
+    s.style.animationDuration = (10+Math.random()*18) + 's';
+    s.style.animationDelay = (-Math.random()*20) + 's';
+    s.style.fontSize = (14+Math.random()*18) + 'px';
+    hb.appendChild(s);
+  }
+})();
+
+// ---------- Toast ----------
+function toast(msg, ms=2200){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+// ---------- Sample images (generated procedurally so no hotlink issues) ----------
+function makeSample(id){
+  const c = document.createElement('canvas'); c.width=400; c.height=400;
+  const cx = c.getContext('2d');
+  if (id===0){ // sunset couple vibe
+    const g = cx.createLinearGradient(0,0,0,400);
+    g.addColorStop(0,'#ff9a9e'); g.addColorStop(.5,'#fad0c4'); g.addColorStop(1,'#a18cd1');
+    cx.fillStyle=g; cx.fillRect(0,0,400,400);
+    cx.fillStyle='#ffb199'; cx.beginPath(); cx.arc(200,260,80,0,Math.PI*2); cx.fill();
+    cx.fillStyle='rgba(255,255,255,.3)'; cx.font='bold 80px Fredoka One, sans-serif'; cx.textAlign='center';
+    cx.fillText('💞', 200, 180);
+    cx.font='bold 32px Nunito, sans-serif'; cx.fillStyle='#fff';
+    cx.fillText('Sunset Love', 200, 360);
+  } else if (id===1){ // galaxy
+    const g = cx.createRadialGradient(200,200,20,200,200,280);
+    g.addColorStop(0,'#fbc2eb'); g.addColorStop(.4,'#a6c1ee'); g.addColorStop(1,'#0f0c29');
+    cx.fillStyle=g; cx.fillRect(0,0,400,400);
+    for(let i=0;i<80;i++){ cx.fillStyle=`rgba(255,255,255,${Math.random()})`; cx.fillRect(Math.random()*400,Math.random()*400,2,2); }
+    cx.font='80px sans-serif'; cx.textAlign='center'; cx.fillText('🌌',200,220);
+    cx.font='bold 30px Nunito, sans-serif'; cx.fillStyle='#fff'; cx.fillText('Galaxy',200,330);
+  } else if (id===2){ // rainbow
+    const g = cx.createLinearGradient(0,0,400,400);
+    g.addColorStop(0,'#ff6b9d');g.addColorStop(.25,'#facc15');g.addColorStop(.5,'#34d399');g.addColorStop(.75,'#60a5fa');g.addColorStop(1,'#c084fc');
+    cx.fillStyle=g; cx.fillRect(0,0,400,400);
+    cx.fillStyle='rgba(255,255,255,.25)'; cx.beginPath(); cx.arc(200,440,300,Math.PI,0); cx.fill();
+    cx.font='70px sans-serif'; cx.textAlign='center'; cx.fillText('🌈',200,220);
+    cx.font='bold 30px Nunito, sans-serif'; cx.fillStyle='#fff'; cx.fillText('Rainbow',200,330);
+  }
+  return c.toDataURL('image/jpeg', 0.85);
+}
+const SAMPLES = [makeSample(0), makeSample(1), makeSample(2)];
+
+function renderSamples(container, onClick){
+  container.innerHTML = '';
+  SAMPLES.forEach((url,i)=>{
+    const d = document.createElement('div');
+    d.className='sample' + (i===0?' sel':'');
+    const im = document.createElement('img'); im.src=url; im.style.width='100%'; im.style.height='100%'; im.style.objectFit='cover';
+    d.appendChild(im);
+    d.addEventListener('click', ()=>{
+      container.querySelectorAll('.sample').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');
+      onClick(url);
+    });
+    container.appendChild(d);
+  });
+}
+
+// ---------- Tabs ----------
+$$('.tab').forEach(t => t.addEventListener('click', ()=>{
+  $$('.tab').forEach(x=>x.classList.remove('active'));
+  $$('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $('#panel-'+t.dataset.tab).classList.add('active');
+}));
+
+// ---------- State ----------
+const state = {
+  selfId: null,
+  inRoom: false,
+  room: null, // latest server state
+  difficulty: 4,
+  imageUrl: SAMPLES[0],
+  imgEl: null,
+  isHost: false,
+  started: false,
+  // canvas view
+  scale: 1, offsetX: 0, offsetY: 0,
+  // pieces (rendering copy, synced via server)
+  pieces: [],
+  // drag
+  dragging: null, dragOffX:0, dragOffY:0, didDrag:false,
+  panning: false, panStartX:0, panStartY:0, panOffX0:0, panOffY0:0,
+  // pointers
+  lastTouch: null, pinchDist:0,
+  // cursors of other players
+  cursors: new Map(),
+  // hint
+  hintPiece: null, hintT: 0,
+  // zoom for mobile
+  showSide: true,
+};
+
+// ---------- File upload ----------
+function setupUpload(zone, input, img, wrap, pickUrl){
+  zone.addEventListener('click', ()=>input.click());
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.style.borderColor='var(--purple)'; });
+  zone.addEventListener('dragleave', ()=> zone.style.borderColor='');
+  zone.addEventListener('drop', e=>{
+    e.preventDefault(); zone.style.borderColor='';
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', e=>{ if (e.target.files[0]) loadFile(e.target.files[0]); });
+  function loadFile(f){
+    if (!f.type.startsWith('image/')) return toast('Please pick an image file!');
+    if (f.size > 6*1024*1024) return toast('Image too big (max 6MB)');
+    const r = new FileReader();
+    r.onload = () => {
+      // Resize before sending
+      const im = new Image();
+      im.onload = () => {
+        const maxDim = 1200;
+        let w = im.width, h = im.height;
+        if (w>maxDim||h>maxDim){ const s = maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const c = document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(im,0,0,w,h);
+        const url = c.toDataURL('image/jpeg', 0.85);
+        img.src = url; wrap.style.display='block';
+        state.imageUrl = url;
+        if (pickUrl) pickUrl(url, w, h);
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(f);
+  }
+}
+function pickSample(url){
+  state.imageUrl = url;
+  $('#previewImg').src = url; $('#previewWrap').style.display='block';
+  const im = new Image(); im.onload=()=>{}; im.src=url;
+}
+renderSamples($('#samples'), pickSample);
+// initial sample selected
+$('#previewImg').src = SAMPLES[0]; $('#previewWrap').style.display='block';
+
+setupUpload($('#uploadZone'), $('#fileInput'), $('#previewImg'), $('#previewWrap'), pickSample);
+
+// Difficulty picker (pre-lobby)
+$$('#diffPick .diff').forEach(d=>{
+  d.addEventListener('click',()=>{
+    $$('#diffPick .diff').forEach(x=>x.classList.remove('active'));
+    d.classList.add('active');
+    state.difficulty = parseInt(d.dataset.n);
+  });
+});
+
+// ---------- Color palette ----------
+const COLORS = [
+  {hex:'#ff6b9d', emoji:'💖'},{hex:'#c084fc',emoji:'💜'},{hex:'#60a5fa',emoji:'💙'},
+  {hex:'#34d399',emoji:'💚'},{hex:'#fb923c',emoji:'🧡'},{hex:'#facc15',emoji:'💛'}
+];
+function renderColorPick(pickHex){
+  const cp = $('#colorPick'); cp.innerHTML='';
+  COLORS.forEach(c=>{
+    const d = document.createElement('div');
+    d.className='color-dot' + (c.hex===pickHex?' sel':'');
+    d.style.background=c.hex;
+    d.addEventListener('click',()=>{
+      cp.querySelectorAll('.color-dot').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');
+      SOCKET.emit('updateColor',{hex:c.hex});
+    });
+    cp.appendChild(d);
+  });
+}
+
+// ---------- Create / Join room ----------
+$('#createBtn').addEventListener('click', ()=>{
+  const name = $('#hostName').value.trim() || 'Host';
+  SOCKET.emit('createRoom', (res)=>{
+    if (!res.ok) return toast('Could not create room 😢');
+    state.selfId = res.selfId;
+    SOCKET.emit('updateName',{name});
+    // Send image + difficulty after room created
+    const im = new Image();
+    im.onload = () => {
+      let w=im.width, h=im.height;
+      const maxDim = 1200;
+      if (w>maxDim||h>maxDim){ const s = maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+      const c = document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(im,0,0,w,h);
+      const dataUrl = c.toDataURL('image/jpeg', 0.85);
+      SOCKET.emit('setImage',{dataUrl,w,h});
+    };
+    im.src = state.imageUrl;
+    SOCKET.emit('setDifficulty',{n: state.difficulty});
+    enterLobby(res.code);
+  });
+});
+
+$('#joinBtn').addEventListener('click', ()=>{
+  const code = $('#joinCode').value.trim();
+  const name = $('#joinName').value.trim() || 'Guest';
+  if (!code) return toast('Enter a room code!');
+  SOCKET.emit('joinRoom',{code, name}, (res)=>{
+    if (!res.ok) return toast(res.error || 'Cannot join');
+    state.selfId = res.selfId;
+    enterLobby(res.code);
+  });
+});
+
+// Allow join via URL param ?room=ABCDE
+(function urlJoin(){
+  const p = new URLSearchParams(location.search);
+  const c = p.get('room');
+  if (c){
+    $('.tab[data-tab="join"]').click();
+    $('#joinCode').value = c.toUpperCase();
+    $('#joinName').focus();
+  }
+})();
+
+// ---------- In-lobby UI ----------
+function enterLobby(code){
+  state.inRoom = true;
+  $('#preTabs').style.display='none';
+  $('#inLobby').style.display='block';
+  $('#roomCode').textContent = code;
+  const url = `${location.origin}?room=${code}`;
+  $('#shareLink').textContent = url;
+  $('#codeMini').textContent = code;
+  renderColorPick(COLORS[0].hex);
+}
+
+$('#copyLinkBtn').addEventListener('click', ()=>{
+  const txt = $('#shareLink').textContent;
+  navigator.clipboard?.writeText(txt).then(()=>toast('Invite link copied! 📋'));
+});
+
+$('#myName').addEventListener('change', ()=> SOCKET.emit('updateName',{name: $('#myName').value}));
+
+$('#leaveBtn').addEventListener('click', ()=>{ location.reload(); });
+
+renderSamples($('#samples2'), (url)=>{
+  state.imageUrl = url;
+  $('#previewImg2').src = url; $('#previewWrap2').style.display='block';
+  const im = new Image();
+  im.onload = () => {
+    let w=im.width, h=im.height;
+    const maxDim=1200;
+    if (w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(im,0,0,w,h);
+    SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
+  };
+  im.src=url;
+});
+setupUpload($('#uploadZone2'), $('#fileInput2'), $('#previewImg2'), $('#previewWrap2'), (url)=>{
+  const im = new Image();
+  im.onload = () => {
+    let w=im.width, h=im.height;
+    const maxDim=1200;
+    if (w>maxDim||h>maxDim){const s=maxDim/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(im,0,0,w,h);
+    SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
+  };
+  im.src=url;
+});
+$$('#diffPick2 .diff').forEach(d=>{
+  d.addEventListener('click',()=>{
+    $$('#diffPick2 .diff').forEach(x=>x.classList.remove('active'));
+    d.classList.add('active');
+    SOCKET.emit('setDifficulty',{n: parseInt(d.dataset.n)});
+  });
+});
+$('#startBtn').addEventListener('click', ()=> SOCKET.emit('startGame'));
+
+// ---------- Socket state handlers ----------
+SOCKET.on('connect', ()=>{ console.log('socket connected', SOCKET.id); });
+SOCKET.on('error', msg => toast(msg));
+SOCKET.on('disconnect', ()=> toast('Disconnected 😢 — refresh?'));
+
+SOCKET.on('state', (room)=>{
+  state.room = room;
+  const wasStarted = state.started;
+  state.started = room.started;
+  state.isHost = room.hostId === state.selfId;
+
+  if (state.inRoom){
+    renderLobbyRoom(room);
+    if (room.started && !wasStarted){
+      startGame(room);
+    } else if (!room.started && wasStarted){
+      stopGame(); // host restarted
+    }
+  }
+
+  if (state.started){
+    // Sync pieces if changed structure (full reset)
+    if (!state.pieces.length || state.pieces.length !== room.pieces.length){
+      state.pieces = room.pieces.map(p=>({...p}));
+      fitView();
+    } else {
+      // Patch pieces for non-self updates (server-authoritative for placed flag)
+      for (const sp of room.pieces){
+        const lp = state.pieces.find(pp=>pp.id===sp.id);
+        if (lp){
+          // If I'm dragging this piece, don't snap it back
+          if (state.dragging?.id===sp.id) continue;
+          lp.x=sp.x; lp.y=sp.y; lp.z=sp.z; lp.placed=sp.placed; lp.lastMover=sp.lastMover;
+        }
+      }
+    }
+    updateStats(room);
+  }
+});
+
+SOCKET.on('pieceMove', (mv)=>{
+  if (!state.started) return;
+  const p = state.pieces.find(pp=>pp.id===mv.id);
+  if (!p) return;
+  if (state.dragging?.id===mv.id) return; // ignore self
+  p.x=mv.x; p.y=mv.y; p.z=mv.z; p.placed=mv.placed; p.lastMover=mv.lastMover;
+  $('#progress').textContent = `${mv.placedCount}/${state.pieces.length}`;
+  $('#progBar').style.width = (mv.placedCount/state.pieces.length*100)+'%';
+  if (mv.finished) showWin();
+});
+
+SOCKET.on('chatMsg', msg => addChatMsg(msg));
+
+SOCKET.on('hint', ()=>{
+  // Pick an unplaced piece and flash it
+  const loose = state.pieces.filter(p=>!p.placed);
+  if (!loose.length) return;
+  const p = loose[Math.floor(Math.random()*loose.length)];
+  state.hintPiece = p.id; state.hintT = performance.now();
+  toast('💡 Hint: one piece is glowing!');
+});
+
+SOCKET.on('viewPhoto', ({on, name})=>{
+  if (on){
+    $('#refOverlay').classList.add('show');
+    $('#refWho').textContent = `${name} is showing the photo`;
+  } else {
+    $('#refOverlay').classList.remove('show');
+  }
+});
+
+function renderLobbyRoom(room){
+  $('#playerCount').textContent = Object.keys(room.players).length;
+  const me = room.players.find(p=>p.id===state.selfId);
+  if (me) $('#myName').value = me.name;
+
+  const list = $('#playersList'); list.innerHTML='';
+  const sideList = $('#playerListSide');
+  if (sideList) sideList.innerHTML='';
+
+  for (const p of room.players){
+    // Lobby list
+    const d = document.createElement('div');
+    d.className='player'; d.style.borderLeftColor=p.color;
+    d.innerHTML = `<div class="avatar" style="background:${p.color}22;">${p.emoji||'🧑'}</div>
+                   <div class="name">${escapeHtml(p.name)}
+                     ${p.id===state.selfId?'<span class="you">YOU</span>':''}
+                     ${p.id===room.hostId?'<span class="host">HOST</span>':''}
+                   </div>`;
+    list.appendChild(d);
+
+    // side panel (game)
+    if (state.started){
+      const r = document.createElement('div');
+      r.className='p-row';
+      r.innerHTML = `<div class="av" style="background:${p.color}33;border:2px solid ${p.color}">${p.emoji||'🧑'}</div>
+                     <div class="nm" style="color:${p.color}">${escapeHtml(p.name)}</div>
+                     <div class="cnt">${p.piecesPlaced||0} 🧩</div>`;
+      sideList.appendChild(r);
+    }
+  }
+  $('#onlineCount').textContent = Object.keys(room.players).length;
+
+  if (state.isHost){
+    $('#hostControls').style.display='block';
+    $('#guestControls').style.display='none';
+    // sync difficulty selection
+    $$('#diffPick2 .diff').forEach(x=>x.classList.toggle('active', parseInt(x.dataset.n)===room.difficulty));
+    $('#startBtn').disabled = !room.hasImage;
+    $('#startBtn').textContent = room.hasImage ? '🧩 Let\'s Play!' : '📷 Upload or pick a photo first';
+    $('#shuffleBtn').style.display='';
+    $('#hintBtn').style.display='';
+  } else {
+    $('#hostControls').style.display='none';
+    $('#guestControls').style.display='block';
+    $('#shuffleBtn').style.display='none';
+    $('#hintBtn').style.display='none';
+  }
+}
+
+function addChatMsg(m){
+  const box = $('#chatBox');
+  const d = document.createElement('div');
+  if (m.system){
+    d.className='chat-msg system'; d.textContent = m.text;
+  } else {
+    d.className='chat-msg';
+    d.innerHTML = `<span class="who" style="color:${m.color}">${m.emoji||''} ${escapeHtml(m.name)}:</span> ${escapeHtml(m.text)}`;
+  }
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- Chat ----------
+$('#chatSend').addEventListener('click', sendChat);
+$('#chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+function sendChat(){
+  const v = $('#chatInput').value; if(!v.trim()) return;
+  SOCKET.emit('chat',{text:v}); $('#chatInput').value='';
+}
+$('#chatBtn').addEventListener('click', ()=>{
+  $('#sidePanel').classList.toggle('open');
+});
+
+// ---------- Game start ----------
+let gameTimer = null, imgEl=null;
+function startGame(room){
+  state.started = true;
+  state.pieces = room.pieces.map(p=>({...p}));
+  state.difficulty = room.difficulty;
+  $('#lobby').style.display='none';
+  $('#gameWrap').classList.add('active');
+  $('#sidePanel').classList.remove('open');
+  // Load image
+  imgEl = new Image(); imgEl.crossOrigin='anonymous';
+  imgEl.onload = ()=>{
+    state.imgEl = imgEl;
+    precomputePiecePaths();
+    resizeCanvas();
+    fitView();
+    render();
+    startTimer();
+    // Welcome chat
+    addChatMsg({system:true, text:'🧩 Game started! Drag pieces onto the board — work together!'});
+  };
+  // We need the image data URL. Fetch latest state image: server doesn't broadcast dataUrl
+  // (too big). Instead, host has it locally; for guests we need to receive it once.
+  if (state.imageUrl && state.isHost){
+    imgEl.src = state.imageUrl;
+  } else {
+    // Request image from host via server? Simpler: emit a "requestImage" — but our server
+    // already has it in room.image.dataUrl (we don't send it in state broadcasts to save bandwidth).
+    // Quick fix: fetch it via a separate endpoint.
+    fetch('/img/'+room.code).then(r=>{
+      if (!r.ok) { toast('Failed to load photo…'); return;}
+      r.text().then(d=> imgEl.src = d);
+    });
+  }
+}
+function stopGame(){
+  state.started=false;
+  state.pieces=[];
+  $('#gameWrap').classList.remove('active');
+  $('#lobby').style.display='block';
+  $('#inLobby').style.display='block';
+  $('#preTabs').style.display='none';
+  clearInterval(gameTimer);
+}
+
+// --- Add image endpoint ---
+// (We'll add it via Express route — see end of file for http route.)
+// For simplicity we'll do it by appending a tiny Express handler here through a global fetch hook.
+// Actually simpler: add route on server. We'll just do a separate fetch and the server will serve it.
+
+function startTimer(){
+  const t0 = Date.now();
+  clearInterval(gameTimer);
+  gameTimer = setInterval(()=>{
+    const s = Math.floor((Date.now()-t0)/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    $('#timer').textContent = `${mm}:${ss}`;
+  },500);
+}
+
+function updateStats(room){
+  const placed = room.pieces.filter(p=>p.placed).length;
+  $('#progress').textContent = `${placed}/${room.pieces.length}`;
+  $('#progBar').style.width = (placed/room.pieces.length*100)+'%';
+  $('#playerCount').textContent = room.players.length;
+}
+
+function showWin(){
+  if ($('#winModal').classList.contains('show')) return;
+  $('#winTime').textContent = $('#timer').textContent;
+  $('#winModal').classList.add('show');
+  confetti();
+  clearInterval(gameTimer);
+}
+$('#playAgainBtn').addEventListener('click', ()=>{
+  $('#winModal').classList.remove('show');
+  SOCKET.emit('restart');
+});
+
+// ---------- Canvas & pieces ----------
+const canvas = $('#board');
+const ctx = canvas.getContext('2d');
+let dpr = window.devicePixelRatio||1;
+
+function resizeCanvas(){
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width = r.width * dpr;
+  canvas.height = r.height * dpr;
+  canvas.style.width = r.width+'px';
+  canvas.style.height = r.height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', ()=>{ resizeCanvas(); if(state.started) render(); });
+
+function fitView(){
+  if (!canvas.parentElement) return;
+  const r = canvas.parentElement.getBoundingClientRect();
+  // Fit the board (1000x1000) into the canvas, leaving room for tray
+  const totalW = BOARD_W + TRAY_W;
+  const s = Math.min(r.width/totalW, r.height/BOARD_H) * 0.95;
+  state.scale = s;
+  state.offsetX = (r.width - totalW*s)/2;
+  state.offsetY = (r.height - BOARD_H*s)/2;
+}
+
+function screenToWorld(sx, sy){
+  const r = canvas.getBoundingClientRect();
+  const x = (sx - r.left - state.offsetX)/state.scale;
+  const y = (sy - r.top - state.offsetY)/state.scale;
+  return {x,y};
+}
+function worldToScreen(x,y){
+  return { x: x*state.scale + state.offsetX, y: y*state.scale + state.offsetY };
+}
+
+// Precompute jigsaw tab paths for each piece
+/* Each piece draws its neighbors' tabs so they interlock. We generate a
+   static "knob profile" and decide for each edge whether it has a tab in or out. */
+let piecePaths = []; // per piece: {path, clipW, clipH}
+let tabPattern = []; // for each edge of each piece: +1 (out), -1 (in), 0 (border flat)
+
+function precomputePiecePaths(){
+  const n = state.difficulty;
+  const pw = BOARD_W / n, ph = BOARD_H / n;
+  tabPattern = [];
+  piecePaths = [];
+  // Generate tab pattern: for horizontal edges (between rows) and vertical edges (between cols)
+  // hTabs[r][c] = sign for piece (r,c) bottom edge (out means bump hangs down)
+  // vTabs[r][c] = sign for piece (r,c) right edge
+  const hTabs=[], vTabs=[];
+  for (let r=0;r<n;r++){
+    hTabs.push([]); vTabs.push([]);
+    for (let c=0;c<n;c++){
+      hTabs[r].push(r<n-1 ? (Math.random()<0.5?1:-1) : 0);
+      vTabs[r].push(c<n-1 ? (Math.random()<0.5?1:-1) : 0);
+    }
+  }
+  for (let r=0;r<n;r++){
+    for (let c=0;c<n;c++){
+      const top    = r===0 ? 0 : -hTabs[r-1][c]; // opposite of neighbor's bottom
+      const bottom = hTabs[r][c];
+      const left   = c===0 ? 0 : -vTabs[r][c-1];
+      const right  = vTabs[r][c];
+      tabPattern.push({top,bottom,left,right});
+      piecePaths.push(buildPiecePath(pw, ph, top, right, bottom, left));
+    }
+  }
+}
+
+function buildPiecePath(pw, ph, top, right, bottom, left){
+  // Builds a Path2D for the piece outline, with tab knobs on non-zero sides.
+  // Coordinates: piece-local (0..pw, 0..ph). Knob size ~22% of edge.
+  const k = Math.min(pw,ph)*0.22;
+  const p = new Path2D();
+  const notch = (dir) => {
+    // dir: +1 means bump OUTSIDE the piece (away from interior)
+    // Start at (x,y) going east; draws a knob to the side specified by dir (positive y = down).
+    // Used on top edge (y=0, going right, out = -y) etc.
+    // We implement per-edge; this helper is unused in favor of explicit edge-by-edge drawing below.
+  };
+  p.moveTo(0,0);
+  // TOP edge (from 0,0 to pw,0); out is -y
+  addEdge(p, 0,0, pw,0, ph, -top, k); // top
+  // RIGHT edge (from pw,0 to pw,ph); out is +x
+  addEdge(p, pw,0, pw,ph, ph, right, k, true);
+  // BOTTOM edge (from pw,ph to 0,ph); out is +y, going left
+  addEdge(p, pw,ph, 0,ph, ph, bottom, k);
+  // LEFT edge (from 0,ph to 0,0); out is -x, going up
+  addEdge(p, 0,ph, 0,0, ph, left, k, true);
+  p.closePath();
+  return p;
+}
+
+// Draw one edge with a knob in the middle. If dir>0, knob sticks outward (toward perpendicular "out" direction).
+// If reverse=true, axis is vertical (moving along y). The knob is drawn perpendicular to the edge.
+function addEdge(p, x1,y1, x2,y2, edgeLen, dir, k, vertical=false){
+  // edge goes from (x1,y1) to (x2,y2). Normal points "out" by dir*(perpendicular unit).
+  const mx = (x1+x2)/2, my = (y1+y2)/2;
+  const kSize = k;
+  const kNeck = k*0.6;
+  if (dir===0){
+    p.lineTo(x2,y2); return;
+  }
+  if (!vertical){
+    // horizontal edge, moving from x1 to x2 (x1<x2 top, x1>x2 bottom)
+    const outY = dir; // +1 down, -1 up (multiplier)
+    const dirX = x2>x1 ? 1 : -1;
+    // 1/3 point
+    p.lineTo(mx - kSize*dirX, y1);
+    // curve outward
+    p.bezierCurveTo(
+      mx - kNeck*dirX, y1,
+      mx - kNeck*dirX, y1 + kSize*1.2*outY,
+      mx,              y1 + kSize*1.3*outY
+    );
+    p.bezierCurveTo(
+      mx + kNeck*dirX, y1 + kSize*1.2*outY,
+      mx + kNeck*dirX, y1,
+      mx + kSize*dirX, y1
+    );
+    p.lineTo(x2,y2);
+  } else {
+    // vertical edge
+    const outX = dir;
+    const dirY = y2>y1 ? 1 : -1;
+    p.lineTo(x1, my - kSize*dirY);
+    p.bezierCurveTo(
+      x1, my - kNeck*dirY,
+      x1 + kSize*1.2*outX, my - kNeck*dirY,
+      x1 + kSize*1.3*outX, my
+    );
+    p.bezierCurveTo(
+      x1 + kSize*1.2*outX, my + kNeck*dirY,
+      x1, my + kNeck*dirY,
+      x1, my + kSize*dirY
+    );
+    p.lineTo(x2,y2);
+  }
+}
+
+// ---------- Rendering ----------
+function render(){
+  if (!state.started) return;
+  const r = canvas.getBoundingClientRect();
+  ctx.clearRect(0,0,r.width,r.height);
+
+  // Draw board outline
+  ctx.save();
+  const tl = worldToScreen(0,0);
+  const br = worldToScreen(BOARD_W, BOARD_H);
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.strokeStyle = 'rgba(192,132,252,0.35)';
+  ctx.lineWidth = 2;
+  ctx.fillRect(tl.x, tl.y, br.x-tl.x, br.y-tl.y);
+  ctx.strokeRect(tl.x, tl.y, br.x-tl.x, br.y-tl.y);
+
+  // Grid guide (subtle)
+  const n = state.difficulty;
+  const pw = BOARD_W/n, ph = BOARD_H/n;
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i=1;i<n;i++){
+    const a = worldToScreen(i*pw, 0), b = worldToScreen(i*pw, BOARD_H);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    const c2 = worldToScreen(0, i*ph), d = worldToScreen(BOARD_W, i*ph);
+    ctx.beginPath(); ctx.moveTo(c2.x,c2.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+  }
+
+  // Tray divider
+  const tA = worldToScreen(BOARD_W,0), tB = worldToScreen(BOARD_W, BOARD_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '600 14px Nunito, sans-serif';
+  const trayMid = worldToScreen(BOARD_W+TRAY_W/2, 20);
+  ctx.textAlign='center'; ctx.fillText('🧩 Loose Pieces', trayMid.x, trayMid.y);
+
+  ctx.restore();
+
+  if (!state.imgEl){ requestAnimationFrame(render); return; }
+
+  // Sort pieces by z
+  const sorted = [...state.pieces].sort((a,b)=>a.z-b.z);
+
+  // Find mover color for each piece
+  const moverColor = id => {
+    const p = state.room?.players.find(x=>x.id===id);
+    return p ? p.color : null;
+  };
+
+  for (const p of sorted){
+    drawPiece(p, moverColor(p.lastMover));
+  }
+
+  // Hint glow
+  if (state.hintPiece){
+    const age = performance.now()-state.hintT;
+    if (age < 2500){
+      const p = state.pieces.find(x=>x.id===state.hintPiece);
+      if (p){
+        const s = worldToScreen(p.x, p.y);
+        const radius = Math.max(BOARD_W/n, BOARD_H/n)*state.scale*0.9;
+        const grad = ctx.createRadialGradient(s.x+radius/2, s.y+radius/2, 10, s.x+radius/2, s.y+radius/2, radius);
+        grad.addColorStop(0,'rgba(250,204,21,0.6)'); grad.addColorStop(1,'rgba(250,204,21,0)');
+        ctx.fillStyle=grad;
+        ctx.beginPath(); ctx.arc(s.x+radius/2,s.y+radius/2,radius,0,Math.PI*2); ctx.fill();
+      }
+    } else state.hintPiece=null;
+  }
+
+  // Draw my drag ghost highlight
+  if (state.dragging){
+    const p = state.pieces.find(x=>x.id===state.dragging.id);
+    if (p){
+      const s = worldToScreen(p.x, p.y);
+      const size = pw*state.scale;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(s.x-2, s.y-2, size+4, size+4);
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+function drawPiece(p, ownerColor){
+  const n = state.difficulty;
+  const pw = BOARD_W/n, ph = BOARD_H/n;
+  const row = Math.floor(p.id/n), col = p.id%n;
+  const sx = worldToScreen(p.x, p.y);
+
+  ctx.save();
+  // Translate to piece screen position
+  ctx.translate(sx.x, sx.y);
+  ctx.scale(state.scale, state.scale);
+
+  // Shadow
+  if (!p.placed){
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 14; ctx.shadowOffsetX=0; ctx.shadowOffsetY=6;
+  }
+
+  // Clip to piece path and draw the photo slice
+  const path = piecePaths[p.id];
+  ctx.save();
+  ctx.clip(path);
+  // Draw image so that piece's slot is at (0,0)
+  ctx.drawImage(state.imgEl, 0,0, state.imgEl.width, state.imgEl.height,
+                -col*pw, -row*ph, BOARD_W, BOARD_H);
+  ctx.restore();
+
+  // Stroke outline
+  ctx.shadowColor='transparent';
+  ctx.lineWidth = 2/state.scale;
+  ctx.strokeStyle = p.placed ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
+  ctx.stroke(path);
+
+  // Owner glow
+  if (ownerColor && !p.placed){
+    ctx.strokeStyle = ownerColor;
+    ctx.lineWidth = 3/state.scale;
+    ctx.globalAlpha = 0.6;
+    ctx.stroke(path);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+// ---------- Input (mouse + touch) ----------
+let activePointer=null;
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+canvas.addEventListener('pointerup', onUp);
+canvas.addEventListener('pointercancel', onUp);
+canvas.addEventListener('wheel', onWheel, {passive:false});
+
+function onDown(e){
+  if (!state.started) return;
+  canvas.setPointerCapture(e.pointerId);
+  activePointer = e.pointerId;
+  const {x,y} = screenToWorld(e.clientX, e.clientY);
+
+  // Right-click or two-finger = pan
+  if (e.button===2 || e.ctrlKey){ startPan(e); return; }
+
+  // Hit-test topmost piece under pointer (reverse z order)
+  const hit = hitPiece(x,y);
+  if (hit){
+    state.dragging = { id: hit.id, z: performance.now() };
+    // Bring to top
+    hit.z = 100000 + (performance.now()%10000);
+    state.dragOffX = x - hit.x;
+    state.dragOffY = y - hit.y;
+    canvas.classList.add('dragging');
+  } else {
+    startPan(e);
+  }
+}
+function onMove(e){
+  if (!state.started) return;
+  const {x,y} = screenToWorld(e.clientX, e.clientY);
+
+  // Send cursor position to server so others see it? (Optional: not implemented to keep msgs tight — we can add)
+
+  if (state.panning){
+    state.offsetX = state.panOffX0 + (e.clientX - state.panStartX);
+    state.offsetY = state.panOffY0 + (e.clientY - state.panStartY);
+    return;
+  }
+  if (state.dragging){
+    const p = state.pieces.find(pp=>pp.id===state.dragging.id);
+    if (!p) return;
+    p.x = x - state.dragOffX;
+    p.y = y - state.dragOffY;
+    // Un-place if moved off slot (and server will re-place if close enough on release)
+    if (p.placed){
+      // allow moving it off
+      p.placed=false;
+    }
+    state.didDrag = true;
+    // Throttle sends
+    const now = performance.now();
+    if (!state.dragging.lastSend || now - state.dragging.lastSend > 30){
+      SOCKET.emit('movePiece', {id:p.id, x:p.x, y:p.y, z:p.z});
+      state.dragging.lastSend = now;
+    }
+  }
+}
+function onUp(e){
+  if (state.panning){ state.panning=false; canvas.classList.remove('panning'); return; }
+  if (state.dragging){
+    const p = state.pieces.find(pp=>pp.id===state.dragging.id);
+    canvas.classList.remove('dragging');
+    if (p){
+      // Snap to nearest slot within threshold
+      const n = state.difficulty;
+      const pw = BOARD_W/n, ph = BOARD_H/n;
+      const col = Math.round(p.x/pw), row = Math.round(p.y/ph);
+      if (col>=0&&col<n&&row>=0&&row>=0){
+        const slotX = col*pw, slotY = row*ph;
+        if (Math.abs(p.x-slotX)<pw*0.35 && Math.abs(p.y-slotY)<ph*0.35){
+          p.x=slotX; p.y=slotY; p.placed=true;
+        }
+      }
+      SOCKET.emit('movePiece',{id:p.id, x:p.x, y:p.y, z:p.z});
+    }
+    state.dragging = null;
+    state.didDrag = false;
+  }
+  if (activePointer===e.pointerId) activePointer=null;
+}
+function startPan(e){
+  state.panning=true;
+  state.panStartX=e.clientX; state.panStartY=e.clientY;
+  state.panOffX0=state.offsetX; state.panOffY0=state.offsetY;
+  canvas.classList.add('panning');
+}
+function onWheel(e){
+  e.preventDefault();
+  const factor = e.deltaY<0 ? 1.1 : 0.9;
+  zoomAt(e.clientX, e.clientY, factor);
+}
+function zoomAt(sx, sy, factor){
+  const r = canvas.getBoundingClientRect();
+  const px = sx - r.left, py = sy - r.top;
+  const wx = (px - state.offsetX)/state.scale;
+  const wy = (py - state.offsetY)/state.scale;
+  state.scale = Math.max(0.3, Math.min(3, state.scale*factor));
+  state.offsetX = px - wx*state.scale;
+  state.offsetY = py - wy*state.scale;
+}
+
+function hitPiece(wx, wy){
+  // Reverse z order
+  const sorted = [...state.pieces].sort((a,b)=>b.z-a.z);
+  const n = state.difficulty;
+  const pw = BOARD_W/n, ph = BOARD_H/n;
+  for (const p of sorted){
+    // quick bbox
+    if (wx < p.x - 20 || wy < p.y - 20 || wx > p.x+pw+20 || wy>p.y+ph+20) continue;
+    ctx.save();
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    // Use isPointInPath with the local coords translated
+    const sp = worldToScreen(p.x, p.y);
+    ctx.translate(sp.x*dpr, sp.y*dpr);
+    ctx.scale(state.scale*dpr, state.scale*dpr);
+    const lx = (wx - p.x), ly = (wy - p.y);
+    const ok = ctx.isPointInPath(piecePaths[p.id], lx, ly);
+    ctx.restore();
+    if (ok) return p;
+  }
+  return null;
+}
+
+// Pinch zoom for touch
+let pinchStartDist=0, pinchStartScale=1;
+canvas.addEventListener('touchstart', e=>{
+  if (e.touches.length===2){
+    e.preventDefault();
+    const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
+    pinchStartDist=Math.hypot(dx,dy); pinchStartScale=state.scale;
+  }
+}, {passive:false});
+canvas.addEventListener('touchmove', e=>{
+  if (e.touches.length===2){
+    e.preventDefault();
+    const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY;
+    const d=Math.hypot(dx,dy);
+    if (pinchStartDist>0){
+      const factor = d/pinchStartDist;
+      state.scale = Math.max(0.3, Math.min(3, pinchStartScale*factor));
+      const mx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      const r=canvas.getBoundingClientRect();
+      state.offsetX = mx - r.left - (BOARD_W/2+TRAY_W/2)*state.scale;
+      state.offsetY = my - r.top - (BOARD_H/2)*state.scale;
+    }
+  }
+}, {passive:false});
+
+// Prevent context menu on board
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+// ---------- Top bar buttons ----------
+$('#shuffleBtn').addEventListener('click', ()=>SOCKET.emit('shuffle'));
+$('#hintBtn').addEventListener('click', ()=>SOCKET.emit('hint'));
+$('#refBtn').addEventListener('mousedown', ()=>{
+  $('#refOverlay').classList.add('show');
+  $('#refImg').src = state.imageUrl;
+  $('#refWho').textContent = 'You are showing the photo';
+  SOCKET.emit('viewPhoto',{on:true});
+});
+$('#refBtn').addEventListener('mouseup', closeRef);
+$('#refBtn').addEventListener('mouseleave', closeRef);
+$('#refBtn').addEventListener('touchstart', (e)=>{e.preventDefault();$('#refOverlay').classList.add('show');$('#refImg').src=state.imageUrl;$('#refWho').textContent='You are showing the photo';SOCKET.emit('viewPhoto',{on:true});});
+$('#refBtn').addEventListener('touchend', closeRef);
+function closeRef(){ $('#refOverlay').classList.remove('show'); SOCKET.emit('viewPhoto',{on:false}); }
+$('#refClose').addEventListener('click', closeRef);
+
+$('#menuBtn').addEventListener('click', ()=>{
+  const c = confirm('Back to lobby? Only the host can fully restart.');
+  if (c && state.isHost){ SOCKET.emit('restart'); }
+  else if (c){ toast('Only the host can restart'); }
+});
+
+// ---------- Confetti ----------
+function confetti(){
+  const colors = ['#ff6b9d','#c084fc','#60a5fa','#34d399','#facc15','#fb923c'];
+  for (let i=0;i<80;i++){
+    const d = document.createElement('div');
+    d.style.cssText = `position:fixed;left:${Math.random()*100}vw;top:-20px;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()<.5?'50%':'2px'};z-index:200;transform:rotate(${Math.random()*360}deg);transition:transform 3s linear,top 3s linear,opacity 3s;opacity:1;`;
+    document.body.appendChild(d);
+    requestAnimationFrame(()=>{
+      d.style.top = '110vh';
+      d.style.transform = `rotate(${Math.random()*720}deg) translateX(${(Math.random()-.5)*200}px)`;
+      d.style.opacity = '0';
+    });
+    setTimeout(()=>d.remove(),3500);
+  }
+}
+
+// Initial canvas size (after layout)
+setTimeout(()=>{ resizeCanvas(); },50);
+
+// ---------- Serve image via GET for guests (needs server route) ----------
+// We add a tiny server route; since client can't influence server, server already has the handler.
+// Leaving as note for server.js — we'll add it there.
+</script>
+
+</body>
+</html>
