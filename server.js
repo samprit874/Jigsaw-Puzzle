@@ -206,10 +206,10 @@ io.on('connection', (socket) => {
     broadcastState(room);
   });
 
-  socket.on('movePiece', ({ id, x, y, z }) => {
+  socket.on('movePiece', ({ id, x, y, z, drag }) => {
     if (!currentRoom) return;
     const room = rooms.get(currentRoom);
-    if (!room?.started || room.finished) return;
+    if (!room?.started) return;
     const p = room.pieces.find(pp => pp.id === id);
     if (!p) return;
     // Snap check: if within threshold of slot position, snap
@@ -218,27 +218,46 @@ io.on('connection', (socket) => {
     const pieceW = W / n, pieceH = H / n;
     const slotX = p.slot.c * pieceW;
     const slotY = p.slot.r * pieceH;
-    const placed = Math.abs(x - slotX) < pieceW * 0.35 && Math.abs(y - slotY) < pieceH * 0.35;
+    const inSlot = Math.abs(x - slotX) < pieceW * 0.35 && Math.abs(y - slotY) < pieceH * 0.35;
 
-    p.x = placed ? slotX : x;
-    p.y = placed ? slotY : y;
-    p.z = z;
-    if (placed && !p.placed) {
-      p.placed = true;
-      p.lastMover = socket.id;
-      room.chat.push({
-        system: true,
-        text: `${room.players[socket.id]?.emoji || '🧩'} ${room.players[socket.id]?.name || 'Someone'} placed piece #${id + 1}!`,
-        t: Date.now(),
-      });
-    } else if (!placed) {
-      p.placed = false;
+    if (drag) {
+      // Transient drag update: move the piece but NEVER snap / place / win-check
+      // mid-drag. A piece passing over its slot while still being dragged would
+      // otherwise "complete" the puzzle (and lock the game) while the dragging
+      // client is still holding it.
+      p.x = x; p.y = y; p.z = z;
+      if (p.placed && !inSlot) p.placed = false; // piece was lifted off its slot
+    } else {
+      // Final drop (client pointer-up)
+      p.x = inSlot ? slotX : x;
+      p.y = inSlot ? slotY : y;
+      p.z = z;
+      if (inSlot) {
+        if (!p.placed) {
+          p.placed = true;
+          p.lastMover = socket.id;
+          room.chat.push({
+            system: true,
+            text: `${room.players[socket.id]?.emoji || '🧩'} ${room.players[socket.id]?.name || 'Someone'} placed piece #${id + 1}!`,
+            t: Date.now(),
+          });
+        }
+      } else {
+        p.placed = false;
+      }
     }
 
-    // Win check
-    if (room.pieces.every(pp => pp.placed)) {
-      room.finished = true;
-      room.chat.push({ system: true, text: '🎉 You did it together! 💖💕💖', t: Date.now() });
+    // Win check — only on final drops, so the celebration can never fire (or get
+    // stuck) while a piece is still in someone's hand.
+    if (!drag) {
+      const allPlaced = room.pieces.every(pp => pp.placed);
+      if (allPlaced && !room.finished) {
+        room.finished = true;
+        room.chat.push({ system: true, text: '🎉 You did it together! 💖💕💖', t: Date.now() });
+      } else if (!allPlaced && room.finished) {
+        // A placed piece was moved off after the win — resume the game
+        room.finished = false;
+      }
     }
 
     // Broadcast move (lighter than full state for 60fps)
