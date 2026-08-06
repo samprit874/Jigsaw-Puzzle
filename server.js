@@ -306,7 +306,7 @@ io.on('connection', (socket) => {
     if (!me) return;
     const t = (text || '').trim().slice(0, 200);
     if (!t) return;
-    const msg = { name: me.name, color: me.color, emoji: me.emoji, text: t, t: Date.now() };
+    const msg = { id: socket.id, name: me.name, color: me.color, emoji: me.emoji, text: t, t: Date.now() };
     room.chat.push(msg);
     if (room.chat.length > 50) room.chat.shift();
     io.to(currentRoom).emit('chatMsg', msg);
