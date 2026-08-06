@@ -299,9 +299,32 @@
     border-radius:var(--radius-lg); padding:28px; text-align:center; box-shadow:var(--shadow-lg);
   }
   .modal h2 { font-size:22px; font-weight:600; letter-spacing:-.01em; margin-bottom:6px; }
-  .modal p { color:var(--text-dim); font-size:13.5px; margin-bottom:18px; }
-  .modal .time { font-size:13px; color:var(--text-dim); margin-bottom:20px; }
+  .modal p { color:var(--text-dim); font-size:13.5px; margin-bottom:14px; }
+  .modal .time { font-size:13px; color:var(--text-dim); margin-bottom:14px; }
   .modal .time b { color:var(--text); font-variant-numeric:tabular-nums; }
+
+  .trophy {
+    font-size:56px; line-height:1; margin-bottom:10px;
+    animation: trophy-pop .55s cubic-bezier(.2,.9,.3,1.35) both;
+    filter: drop-shadow(0 6px 18px rgba(245,158,11,.45));
+  }
+  @keyframes trophy-pop {
+    0%   { transform:scale(0) rotate(-25deg); opacity:0; }
+    60%  { transform:scale(1.2) rotate(8deg); opacity:1; }
+    100% { transform:scale(1) rotate(0); }
+  }
+  .win-stats-title { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin:0 0 6px; }
+  .wstat {
+    display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:var(--radius-sm);
+    background:var(--bg); border:1px solid var(--border); font-size:12.5px;
+    animation: stat-in .35s ease both;
+  }
+  .wstat + .wstat { margin-top:5px; }
+  .ws-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.06); }
+  .ws-name { flex:1; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ws-cnt { color:var(--text-dim); font-variant-numeric:tabular-nums; }
+  @keyframes stat-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  #winStats { margin-bottom:16px; }
 
   /* Toast */
   .toast {
@@ -509,10 +532,12 @@
 
 <div class="modal-bg" id="winModal">
   <div class="modal">
-    <div style="font-size:32px; margin-bottom:8px;">🎉</div>
-    <h2>Puzzle complete</h2>
-    <p id="winText">Nicely done — you finished it together.</p>
-    <div class="time">Time: <b id="winTime">00:00</b></div>
+    <div class="trophy">🏆</div>
+    <h2>Puzzle complete!</h2>
+    <p id="winText">Beautiful work — you finished it together.</p>
+    <div class="time">⏱ <b id="winTime">00:00</b></div>
+    <div class="win-stats-title">Placed by</div>
+    <div id="winStats"></div>
     <div class="btn-row" style="justify-content:center">
       <button class="btn primary keep-size" id="playAgainBtn" style="flex:0 0 auto; padding:0 20px;">Play again</button>
     </div>
@@ -607,7 +632,7 @@ const state={
   pieces:[],
   dragging:null, dragOffX:0, dragOffY:0,
   panning:false, panStartX:0, panStartY:0, panOffX0:0, panOffY0:0,
-  hintPiece:null, hintT:0,
+  hintPiece:null, hintT:0, finished:false,
 };
 
 // ---------- File upload ----------
@@ -779,6 +804,9 @@ SOCKET.on('state',room=>{
         if(lp && state.dragging?.id!==sp.id){ lp.x=sp.x; lp.y=sp.y; lp.z=sp.z; lp.placed=sp.placed; lp.lastMover=sp.lastMover; } }
     }
     updateStats(room);
+    if(room.finished) showWin();
+    else if(state.finished && $('#winModal').classList.contains('show')) $('#winModal').classList.remove('show');
+    state.finished=room.finished;
   }
 });
 SOCKET.on('pieceMove',mv=>{
@@ -790,6 +818,8 @@ SOCKET.on('pieceMove',mv=>{
   $('#progress').textContent=`${placedCount}/${state.pieces.length}`;
   $('#progBar').style.width=(placedCount/state.pieces.length*100)+'%';
   if(mv.finished) showWin();
+  else if(state.finished && $('#winModal').classList.contains('show')) $('#winModal').classList.remove('show');
+  state.finished=!!mv.finished;
 });
 SOCKET.on('chatMsg',m=>addMsg(m));
 SOCKET.on('hint',()=>{
@@ -874,7 +904,7 @@ function startGame(room){
   else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>imgEl.src=d); else toast('Failed to load image.'); });
 }
 function stopGame(){
-  state.started=false; state.pieces=[];
+  state.started=false; state.finished=false; state.pieces=[];
   $('#gameWrap').classList.remove('active'); $('#lobby').style.display='';
   $('#inLobby').classList.remove('hidden'); $('#preJoin').classList.add('hidden');
   clearInterval(gameTimer);
@@ -894,6 +924,22 @@ function updateStats(room){
 function showWin(){
   if($('#winModal').classList.contains('show')) return;
   $('#winTime').textContent=$('#timer').textContent;
+  // Who placed what — an "award" for every contributor. Counted from the live
+  // piece list (lastMover) because state.room snapshots don't refresh on moves.
+  const counts={};
+  for(const pc of state.pieces) if(pc.placed && pc.lastMover) counts[pc.lastMover]=(counts[pc.lastMover]||0)+1;
+  const players=(state.room?.players||[]).filter(pl=>counts[pl.id]>0).map(pl=>({...pl,n:counts[pl.id]}));
+  players.sort((a,b)=>b.n-a.n);
+  const stats=$('#winStats');
+  if(players.length){
+    stats.innerHTML=players.map((p,i)=>`
+      <div class="wstat" style="animation-delay:${i*70}ms">
+        <span class="ws-dot" style="background:${esc(p.color)}"></span>
+        <span class="ws-name">${esc(p.name)}</span>
+        <span class="ws-cnt">${p.n} ${p.n===1?'piece':'pieces'}</span>
+      </div>`).join('');
+    stats.style.display='';
+  } else stats.style.display='none';
   $('#winModal').classList.add('show');
   confetti(); clearInterval(gameTimer);
 }
@@ -936,7 +982,12 @@ function precomputePaths(){
     v[r].push(c<n-1?(Math.random()<.5?1:-1):0);
   }}
   for(let r=0;r<n;r++) for(let c=0;c<n;c++){
-    const top=r===0?0:-h[r-1][c], bot=h[r][c], left=c===0?0:-v[r][c-1], right=v[r][c];
+    // Edge compatibility: a joint shared by two pieces must be a tab on one side
+    // and a notch on the other. A piece's bottom/right tab values are +h/+v, and
+    // the neighbour's top/left must use the SAME value (the edge() builder flips
+    // the geometry so identical values interlock). Negating `left` made vertical
+    // joints both-tab or both-notch — pieces visually clashed instead of fitting.
+    const top=r===0?0:-h[r-1][c], bot=h[r][c], left=c===0?0:v[r][c-1], right=v[r][c];
     tabs.push({top,bot,left,right});
     piecePaths.push(buildPath(pw,ph,top,right,bot,left));
   }
@@ -989,6 +1040,16 @@ function render(){
   const sorted=[...state.pieces].sort((a,b)=>a.z-b.z);
   const moverColor=id=>state.room?.players.find(x=>x.id===id)?.color;
   for(const p of sorted) drawPiece(p, moverColor(p.lastMover));
+  if(state.finished){
+    // Golden glow around the completed puzzle
+    const gA=w2s(0,0), gB=w2s(BOARD_W,BOARD_H);
+    ctx.save();
+    ctx.strokeStyle='rgba(245,158,11,.85)';
+    ctx.lineWidth=2.5;
+    ctx.shadowColor='rgba(245,158,11,.95)'; ctx.shadowBlur=22;
+    ctx.strokeRect(gA.x,gA.y,gB.x-gA.x,gB.y-gA.y);
+    ctx.restore();
+  }
   if(state.hintPiece){
     const age=performance.now()-state.hintT;
     if(age<2000){
@@ -1016,7 +1077,7 @@ function drawPiece(p, owner){
   ctx.restore();
   ctx.shadowColor='transparent';
   ctx.lineWidth=1.5/state.scale;
-  ctx.strokeStyle = p.placed ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.4)';
+  ctx.strokeStyle = p.placed ? (state.finished?'rgba(245,158,11,.5)':'rgba(255,255,255,.15)') : 'rgba(255,255,255,.4)';
   ctx.stroke(path);
   if(owner&&!p.placed){ ctx.strokeStyle=owner; ctx.lineWidth=2/state.scale; ctx.globalAlpha=.7; ctx.stroke(path); ctx.globalAlpha=1; }
   ctx.restore();
@@ -1061,7 +1122,9 @@ function onMove(e){
     p.x=x-state.dragOffX; p.y=y-state.dragOffY; if(p.placed) p.placed=false;
     const now=performance.now();
     if(!state.dragging.lastSend||now-state.dragging.lastSend>30){
-      SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z}); state.dragging.lastSend=now;
+      // drag:true tells the server this is a transient mid-drag position — it must
+      // not snap/place the piece or trigger the win check until the final drop.
+      SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z,drag:true}); state.dragging.lastSend=now;
     }
   }
 }
@@ -1170,19 +1233,26 @@ $('#refBtn').addEventListener('touchend',()=>pressRef(false));
 $('#refClose').addEventListener('click',()=>pressRef(false));
 $('#menuBtn').addEventListener('click',()=>{ if(confirm('Return to lobby?')&&state.isHost) SOCKET.emit('restart'); });
 
-// ---------- Confetti (subtle) ----------
+// ---------- Confetti (celebration) ----------
 function confetti(){
-  const colors=['#f59e0b','#fbbf24','#3b82f6','#22c55e','#ec4899','#a855f7'];
-  for(let i=0;i<60;i++){
-    const d=document.createElement('div');
-    d.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:-10px;width:8px;height:8px;
-      background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()<.5?'50%':'2px'};
-      z-index:200;pointer-events:none;opacity:1;transition:transform 2.5s cubic-bezier(.2,.6,.4,1),top 2.5s ease,opacity 2.5s;`;
-    document.body.appendChild(d);
-    requestAnimationFrame(()=>{ d.style.top='105vh';
-      d.style.transform=`translateX(${(Math.random()-.5)*160}px) rotate(${Math.random()*720}deg)`; d.style.opacity='0'; });
-    setTimeout(()=>d.remove(),2700);
-  }
+  const colors=['#f59e0b','#fbbf24','#3b82f6','#22c55e','#ec4899','#a855f7','#f97316','#14b8a6','#e2e8f0'];
+  const burst=n=>{
+    for(let i=0;i<n;i++){
+      const d=document.createElement('div');
+      const w=5+Math.random()*8, h=w*(Math.random()<.5?1:.4);
+      const dur=(1.6+Math.random()*1.6).toFixed(2);
+      d.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:-16px;width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()<.5?'50%':'2px'};
+        z-index:200;pointer-events:none;opacity:1;will-change:transform,top,opacity;
+        transition:transform ${dur}s cubic-bezier(.15,.6,.4,1),top ${dur}s ease-in,opacity ${dur}s;`;
+      document.body.appendChild(d);
+      requestAnimationFrame(()=>{ d.style.top='108vh';
+        d.style.transform=`translateX(${(Math.random()-.5)*240}px) rotate(${Math.random()*1080}deg)`;
+        d.style.opacity='0'; });
+      setTimeout(()=>d.remove(), Math.ceil(dur*1000)+150);
+    }
+  };
+  burst(140); setTimeout(()=>burst(80),380);
 }
 
 function initCanvas(){ resizeCanvas(); }
