@@ -1073,7 +1073,7 @@ window.addEventListener('resize',()=>{
   const r=canvas.parentElement.getBoundingClientRect();
   if(!r.width||!r.height) return;
   const vert=r.width<r.height;
-  if(lastViewSize.vert!==vert || state.trayH!==trayHeightFor(state.difficulty)){
+  if(lastViewSize.vert!==vert){
     // Orientation/layout flip → re-fit from scratch
     fitView();
   } else if(lastViewSize.w&&lastViewSize.h){
@@ -1081,6 +1081,11 @@ window.addEventListener('resize',()=>{
     // pan/zoom, just re-anchor proportionally. No more random view resets.
     state.offsetX*=r.width/lastViewSize.w;
     state.offsetY*=r.height/lastViewSize.h;
+    if(vert){
+      const minTrayH = trayHeightFor(state.difficulty);
+      const availWorldH = Math.floor((r.height - state.offsetY)/state.fitScale - BOARD_H);
+      state.trayH = Math.max(minTrayH, availWorldH);
+    }
     clampPan();
     lastViewSize={w:r.width,h:r.height,vert};
   } else {
@@ -1097,14 +1102,17 @@ function fitView(){
   // the full screen width. Landscape/desktop keeps the side tray.
   const vert = r.width < r.height;
   state.trayVertical = vert;
-  state.trayH = trayHeightFor(state.difficulty);
+  const minTrayH = trayHeightFor(state.difficulty);
+  state.trayH = minTrayH;
   $('#canvasWrap').classList.toggle('vertical', vert);
   let s;
   if(vert){
-    const totH = BOARD_H + state.trayH;
+    const totH = BOARD_H + minTrayH;
     s = Math.min(r.width/BOARD_W, r.height/totH)*0.96;
     state.offsetX = (r.width - BOARD_W*s)/2;
-    state.offsetY = (r.height - totH*s)/2;
+    state.offsetY = Math.max(12, Math.min((r.height - totH*s)/2, 24));
+    const availWorldH = Math.floor((r.height - state.offsetY)/s - BOARD_H);
+    state.trayH = Math.max(minTrayH, availWorldH);
   } else {
     const totW = BOARD_W+TRAY_W;
     s = Math.min(r.width/totW, r.height/BOARD_H)*0.94;
@@ -1249,19 +1257,38 @@ function drawFrame(){
   ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=1;
   ctx.fillRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y); ctx.strokeRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y);
   const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
-  ctx.strokeStyle='rgba(255,255,255,.04)';
+  ctx.strokeStyle='rgba(255,255,255,.03)';
   for(let i=1;i<n;i++){
     let a=w2s(i*pw,0), b=w2s(i*pw,BOARD_H); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     let c=w2s(0,i*ph), d=w2s(BOARD_W,i*ph); ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
   }
+  // Draw exact jigsaw slot outlines on the empty table so every piece sits flush inside its small box
+  if(piecePaths.length === n*n){
+    for(let r=0;r<n;r++){
+      for(let c=0;c<n;c++){
+        const id = r*n+c;
+        const path = piecePaths[id];
+        if(!path) continue;
+        const sx = w2s(c*pw, r*ph);
+        ctx.save();
+        ctx.translate(sx.x, sx.y);
+        ctx.scale(state.scale, state.scale);
+        ctx.lineWidth = 1.3 / state.scale;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.stroke(path);
+        ctx.restore();
+      }
+    }
+  }
   if(state.trayVertical){
-    // Tray strip below the board (dashed separator + faint backdrop)
+    // Tray strip below the board (dashed separator + faint backdrop filling remaining screen height)
     const sY = BOARD_H*state.scale+state.offsetY;
     const sX0 = state.offsetX, sX1 = BOARD_W*state.scale+state.offsetX;
-    ctx.fillStyle='rgba(255,255,255,.018)';
-    ctx.fillRect(sX0, sY, sX1-sX0, state.trayH*state.scale);
-    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(sX0,sY); ctx.lineTo(sX1,sY); ctx.stroke(); ctx.setLineDash([]);
+    const bottomY = canvas.height / dpr;
+    ctx.fillStyle='rgba(255,255,255,.022)';
+    ctx.fillRect(0, sY, canvas.width / dpr, Math.max(state.trayH*state.scale, bottomY - sY));
+    ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(0, sY); ctx.lineTo(canvas.width / dpr, sY); ctx.stroke(); ctx.setLineDash([]);
   } else {
     const tA=w2s(BOARD_W,0), tB=w2s(BOARD_W,BOARD_H);
     ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
@@ -1281,6 +1308,24 @@ function drawFrame(){
   for(const [p,t] of trayList) drawPiece(p, moverColor(p.lastMover), t);
   if(state.dragging){
     const dp=state.pieces.find(pp=>pp.id===state.dragging.id);
+    if(dp && !dp.placed){
+      const s = pieceSlot(dp);
+      const path = piecePaths[dp.id];
+      if(path && Math.abs(dp.x - s.x) < pw * 0.45 && Math.abs(dp.y - s.y) < ph * 0.45){
+        const sx = w2s(s.x, s.y);
+        ctx.save();
+        ctx.translate(sx.x, sx.y);
+        ctx.scale(state.scale, state.scale);
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.22)';
+        ctx.fill(path);
+        ctx.lineWidth = 2.5 / state.scale;
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.95)';
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
+        ctx.shadowBlur = 14;
+        ctx.stroke(path);
+        ctx.restore();
+      }
+    }
     if(dp) drawPiece(dp, moverColor(dp.lastMover), null);
   }
   if(state.finished){
@@ -1324,8 +1369,8 @@ function drawPiece(p, owner, tile){
   ctx.drawImage(state.imgEl,0,0,state.imgEl.width,state.imgEl.height,-col*pw,-row*ph,BOARD_W,BOARD_H);
   ctx.restore();
   ctx.shadowColor='transparent';
-  ctx.lineWidth=1.5/ds;
-  ctx.strokeStyle = p.placed ? (state.finished?'rgba(245,158,11,.5)':'rgba(255,255,255,.15)') : 'rgba(255,255,255,.4)';
+  ctx.lineWidth = (p.placed ? 0.8 : 1.5) / ds;
+  ctx.strokeStyle = p.placed ? (state.finished ? 'rgba(245,158,11,.6)' : 'rgba(255,255,255,.08)') : 'rgba(255,255,255,.45)';
   ctx.stroke(path);
   if(owner&&!p.placed){ ctx.strokeStyle=owner; ctx.lineWidth=2/ds; ctx.globalAlpha=.7; ctx.stroke(path); ctx.globalAlpha=1; }
   ctx.restore();
@@ -1555,7 +1600,7 @@ function onUp(e){
       const c=clampPieceXY(p.x,p.y);
       p.x=c.x; p.y=c.y;
 
-      const isOwnSlot = Math.abs(p.x - slotX) < pw * 0.35 && Math.abs(p.y - slotY) < ph * 0.35;
+      const isOwnSlot = Math.abs(p.x - slotX) < pw * 0.42 && Math.abs(p.y - slotY) < ph * 0.42;
 
       if (isOwnSlot) {
         p.x = slotX;
@@ -1570,7 +1615,7 @@ function onUp(e){
           const pcR = pc.slot ? pc.slot.r : Math.floor(pc.id / n);
           const pcX = pcC * pw;
           const pcY = pcR * ph;
-          return Math.abs(p.x - pcX) < pw * 0.35 && Math.abs(p.y - pcY) < ph * 0.35;
+          return Math.abs(p.x - pcX) < pw * 0.42 && Math.abs(p.y - pcY) < ph * 0.42;
         });
 
         if (overOccupiedSlot) {

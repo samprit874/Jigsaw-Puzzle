@@ -248,7 +248,7 @@ io.on('connection', (socket) => {
     // Snap check: if within threshold of slot position, snap
     const slotX = p.slot.c * pieceW;
     const slotY = p.slot.r * pieceH;
-    const inSlot = Math.abs(x - slotX) < pieceW * 0.35 && Math.abs(y - slotY) < pieceH * 0.35;
+    const inSlot = Math.abs(x - slotX) < pieceW * 0.42 && Math.abs(y - slotY) < pieceH * 0.42;
 
     if (drag) {
       // Transient drag update: move the piece but NEVER snap / place / win-check

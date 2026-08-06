@@ -46,7 +46,7 @@ async function main() {
 
   check('game started', $('#gameWrap').classList.contains('active'));
   check('portrait → vertical tray mode', state().trayVertical === true);
-  check('tray strip height set', state().trayH === ({3:180,4:220,5:260,6:300})[n0], `trayH=${state().trayH}`);
+  check('tray strip height set', state().trayH >= ({3:180,4:220,5:260,6:300})[n0], `trayH=${state().trayH}`);
   check('pieces present', state().pieces.length === TOTAL);
 
   // --- 1. tray tiles stay inside the strip ---
@@ -182,8 +182,8 @@ async function main() {
   function findEmptySpot() {
     // Board gaps first, then the void (which is all that may be visible after
     // an extreme pan fling)
-    for (let gy = 60; gy < 1450; gy += 70) {
-      for (let gx = 60; gx < 1900; gx += 70) {
+    for (let gy = 60; gy < 2400; gy += 70) {
+      for (let gx = 60; gx < 2400; gx += 70) {
         const s = w2s(gx, gy);
         if (s.x < 8 || s.x > RECT.width - 8 || s.y < 8 || s.y > RECT.height - 8) continue;
         if (!window.__api.hit(s.x, s.y)) return s;
