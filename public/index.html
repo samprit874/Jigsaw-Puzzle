@@ -1060,7 +1060,7 @@ function onUp(e){
     if(p){
       const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
       const col=Math.round(p.x/pw), row=Math.round(p.y/ph);
-      if(col>=0&&col<n&&row>=0&&row>=0){
+      if(col>=0&&col<n&&row>=0&&row<n){
         const sx=col*pw, sy=row*ph;
         if(Math.abs(p.x-sx)<pw*.35&&Math.abs(p.y-sy)<ph*.35){ p.x=sx; p.y=sy; p.placed=true; }
       }
@@ -1084,22 +1084,20 @@ function hitPiece(wx,wy){
   const sorted=[...state.pieces].sort((a,b)=>b.z-a.z);
   const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
   const tabPad=Math.min(pw,ph)*0.28;
-  // Use a SECOND offscreen transform — reset cleanly
+
+  // The paths are created in a piece-local 1000/n coordinate system.  Test
+  // against that same local system instead of applying the screen transform
+  // again.  Applying translate/scale here makes the path live in screen
+  // coordinates while `lx`/`ly` are still local coordinates, so every click
+  // misses and the empty-board pan handler runs instead.
   ctx.save();
-  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.setTransform(1,0,0,1,0,0);
   hoverId=-1;
   for(const p of sorted){
     if(wx<p.x-tabPad||wy<p.y-tabPad||wx>p.x+pw+tabPad||wy>p.y+ph+tabPad) continue;
     const lx=wx-p.x, ly=wy-p.y;
-    ctx.save();
-    // translate to piece position in CSS pixels
-    const sx=p.x*state.scale+state.offsetX;
-    const sy=p.y*state.scale+state.offsetY;
-    ctx.translate(sx, sy);
-    ctx.scale(state.scale, state.scale);
     let ok=false;
     try{ ok=ctx.isPointInPath(piecePaths[p.id], lx, ly, 'nonzero'); }catch(e){}
-    ctx.restore();
     if(ok){ hoverId=p.id; ctx.restore(); return p; }
   }
   ctx.restore();
