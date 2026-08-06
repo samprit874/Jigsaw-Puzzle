@@ -46,6 +46,30 @@ function genCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
+const BOARD_W = 1000, BOARD_H = 1000, TRAY_W = 380;
+
+// Scatter inside the shared tray region so pieces of every difficulty actually
+// FIT on screen (3x3 pieces are 333 wide — the old W+40..W+340 range pushed them
+// half off the right edge of the tray).
+function trayScatter(n) {
+  const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+  const spanX = Math.max(0, TRAY_W - 40 - pieceW);
+  return {
+    x: BOARD_W + 20 + Math.random() * spanX,
+    y: 40 + Math.random() * (BOARD_H - pieceH - 80),
+  };
+}
+
+// Keep loose pieces on the reachable table — a piece dropped off in the void is
+// a lost piece and an unwinnable game.
+function clampPiece(n, x, y) {
+  const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+  return {
+    x: Math.max(-pieceW * 0.45, Math.min(BOARD_W + TRAY_W - pieceW * 0.45, x)),
+    y: Math.max(-pieceH * 0.45, Math.min(BOARD_H - pieceH * 0.3, y)),
+  };
+}
+
 function roomState(r) {
   return {
     code: r.code,
@@ -134,9 +158,14 @@ io.on('connection', (socket) => {
     if (!currentRoom) return;
     const room = rooms.get(currentRoom);
     if (!room?.players[socket.id]) return;
-    const color = COLORS.find(c => c.hex === hex) || COLORS[0];
-    room.players[socket.id].color = color.hex;
-    room.players[socket.id].emoji = color.emoji;
+    // The client's palette differs from the server's — snapping to the server
+    // palette silently turned every pick into the wrong color. Accept any valid
+    // #rrggbb hex instead.
+    const clean = /^#[0-9a-fA-F]{6}$/.test(hex || '') ? hex.toLowerCase() : null;
+    if (!clean) return;
+    const preset = COLORS.find(c => c.hex === clean);
+    room.players[socket.id].color = clean;
+    room.players[socket.id].emoji = preset ? preset.emoji : '🎨';
     broadcastState(room);
   });
 
@@ -176,20 +205,16 @@ io.on('connection', (socket) => {
 
     const n = room.difficulty;
     room.pieces = [];
-    const W = 1000, H = 1000; // logical board area
-    const pieceW = W / n, pieceH = H / n;
 
     // Scatter in a "tray" region (right side) — server only stores logical coords;
     // client maps to actual pixels.
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
         const id = r * n + c;
-        // Tray area: logical coords beyond W..W+400, y random
-        const tx = W + 40 + Math.random() * 300;
-        const ty = 40 + Math.random() * (H - pieceH - 80);
+        const t = trayScatter(n);
         room.pieces.push({
           id,
-          x: tx, y: ty,
+          x: t.x, y: t.y,
           rotation: 0,
           z: id,
           placed: false,
@@ -212,10 +237,15 @@ io.on('connection', (socket) => {
     if (!room?.started) return;
     const p = room.pieces.find(pp => pp.id === id);
     if (!p) return;
-    // Snap check: if within threshold of slot position, snap
     const n = room.difficulty;
-    const W = 1000, H = 1000;
-    const pieceW = W / n, pieceH = H / n;
+    const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+    // Sanitize + clamp: no NaN poisoning, no pieces lost in the void
+    x = Number(x); y = Number(y); z = Number(z);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (!Number.isFinite(z)) z = p.z || 0;
+    const cl = clampPiece(n, x, y);
+    x = cl.x; y = cl.y;
+    // Snap check: if within threshold of slot position, snap
     const slotX = p.slot.c * pieceW;
     const slotY = p.slot.r * pieceH;
     const inSlot = Math.abs(x - slotX) < pieceW * 0.35 && Math.abs(y - slotY) < pieceH * 0.35;
@@ -274,11 +304,11 @@ io.on('connection', (socket) => {
     if (!room?.started || room.finished) return;
     if (room.hostId !== socket.id) return;
     const n = room.difficulty;
-    const W = 1000;
     for (const p of room.pieces) {
       if (p.placed) continue;
-      p.x = W + 40 + Math.random() * 300;
-      p.y = 40 + Math.random() * 900;
+      const t = trayScatter(n);
+      p.x = t.x;
+      p.y = t.y;
       p.z = (p.z || 0) + 1;
     }
     broadcastState(room);
