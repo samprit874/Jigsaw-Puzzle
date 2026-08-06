@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
 <title>Jigsaw — solve puzzles together</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -95,13 +95,13 @@
   .input.mono { font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:3px; text-align:center; font-size:18px; text-transform:uppercase; }
 
   /* ---------- App shell ---------- */
-  .app { position:relative; z-index:1; height:100vh; width:100vw; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .app { position:relative; z-index:1; height:100vh; height:100dvh; width:100vw; display:flex; align-items:center; justify-content:center; padding:20px; }
 
   /* ---------- Card / Lobby ---------- */
   .lobby {
     width:100%; max-width:460px; background:var(--bg-elev); border:1px solid var(--border);
     border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow-lg);
-    max-height:calc(100vh - 40px); overflow-y:auto;
+    max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); overflow-y:auto;
   }
   .brand { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
   .brand-mark {
@@ -242,6 +242,8 @@
     position:absolute; top:10px; right:16px; font-size:11px; color:var(--text-mute);
     font-weight:500; text-transform:uppercase; letter-spacing:.08em; pointer-events:none;
   }
+  /* Portrait layout (tray below the board): label sits at the bottom of the strip */
+  .canvas-area.vertical .tray-hint { top:auto; bottom:8px; right:16px; }
 
   /* Side panel */
   .side {
@@ -249,11 +251,20 @@
     display:flex; flex-direction:column; transition:transform .2s ease;
   }
   @media (max-width: 760px){
-    .side { position:absolute; right:0; top:0; bottom:0; width:300px; transform:translateX(100%); z-index:30; box-shadow:var(--shadow-lg); }
+    .side { position:absolute; right:0; top:0; bottom:0; width:min(300px, 88vw); transform:translateX(100%); z-index:30; box-shadow:var(--shadow-lg); }
     .side.open { transform:translateX(0); }
+    .side-close { display:flex; }
   }
   .side-h { padding:12px 14px; border-bottom:1px solid var(--border); }
   .side-h .t { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin-bottom:8px; }
+  .side-h-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .side-h-row .t { margin-bottom:0; }
+  .side-close {
+    display:none; width:32px; height:32px; flex-shrink:0; border-radius:var(--radius-sm);
+    border:1px solid var(--border); background:var(--bg); color:var(--text-dim);
+    font-size:14px; cursor:pointer; align-items:center; justify-content:center;
+  }
+  .side-close:active { transform:scale(.94); }
   .plist { display:flex; flex-direction:column; gap:4px; }
   .prow {
     display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-sm);
@@ -339,11 +350,23 @@
 
   /* Mobile */
   @media (max-width: 520px){
-    .lobby { padding:22px; }
+    .app { padding:12px; }
+    .lobby { padding:22px; max-height:calc(100dvh - 24px); }
     .code { font-size:24px; letter-spacing:6px; }
     .topbar { padding:0 8px; gap:4px; }
     .stat { padding:0 7px; font-size:11.5px; }
     .brand-sub { margin-left:0; }
+    .modal { max-height:calc(100dvh - 32px); overflow-y:auto; padding:22px; }
+    .chat-in { padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+  }
+  @media (max-width: 560px){
+    /* Chat panel becomes a full-width sheet on phones */
+    .side { width:100%; }
+    .topbar .stat.hide-m { display:none; }
+    .topbar .btn.icon { width:36px; height:36px; }
+  }
+  @media (max-width: 420px){
+    .logo-mini { font-size:0; gap:0; padding-right:0; border-right:none; margin-right:0; }
   }
 </style>
 </head>
@@ -490,8 +513,8 @@
       <div class="logo-mini"><span class="dot"></span> Jigsaw</div>
       <div class="stat">⏱ <b id="timer">00:00</b></div>
       <div class="stat">🧩 <b id="progress">0/0</b></div>
-      <div class="stat">👥 <b id="onlineCount">1</b></div>
-      <div class="stat code" id="codeMini">—</div>
+      <div class="stat hide-m">👥 <b id="onlineCount">1</b></div>
+      <div class="stat code hide-m" id="codeMini">—</div>
       <div class="spacer"></div>
       <button class="btn icon" id="shuffleBtn" title="Shuffle loose pieces">⤮</button>
       <button class="btn icon" id="hintBtn" title="Hint">💡</button>
@@ -512,7 +535,10 @@
           <div class="plist" id="playerListSide"></div>
         </div>
         <div class="side-h" style="border-top:1px solid var(--border); border-bottom:none; padding-bottom:4px">
-          <div class="t" style="margin-top:4px">Chat</div>
+          <div class="side-h-row" style="margin-top:4px">
+            <div class="t">Chat</div>
+            <button class="side-close" id="sideClose" title="Close panel" aria-label="Close panel">✕</button>
+          </div>
         </div>
         <div class="chat-box" id="chatBox"></div>
         <div class="chat-in">
@@ -551,6 +577,10 @@
 /* Jigsaw — realtime multiplayer client */
 const SOCKET = io({ transports:['websocket','polling'] });
 const BOARD_W = 1000, BOARD_H = 1000, TRAY_W = 380;
+// Portrait layout: the tray is a strip BELOW the board instead of to the right.
+// Same shared world coordinates — only the on-screen mapping of the tray region
+// (x >= BOARD_W) changes, and the board region is identical on every device.
+const TRAY_VERT_H = 260, TRAY_VERT_PAD = 12;
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
@@ -880,7 +910,20 @@ function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','
 $('#chatSend').addEventListener('click',sendChat);
 $('#chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
 function sendChat(){ const v=$('#chatInput').value; if(!v.trim()) return; SOCKET.emit('chat',{text:v}); $('#chatInput').value=''; }
-$('#chatBtn').addEventListener('click',()=>$('#sidePanel').classList.toggle('open'));
+$('#chatBtn').addEventListener('click',()=>{
+  const p=$('#sidePanel'); p.classList.toggle('open');
+  if(p.classList.contains('open')) setTimeout(()=>$('#chatInput').focus(),80);
+});
+$('#sideClose').addEventListener('click',()=>$('#sidePanel').classList.remove('open'));
+// Keep the chat input above the on-screen keyboard (iOS/older Android)
+$('#chatInput').addEventListener('focus',()=>setTimeout(()=>$('#chatInput').scrollIntoView({block:'nearest'}),100));
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',()=>{
+    const g=$('#gameWrap'), vv=window.visualViewport;
+    // Keyboard visible → shrink the game shell to the visible viewport
+    g.style.height = (vv.height < window.innerHeight*0.8) ? vv.height+'px' : '';
+  });
+}
 
 // ---------- Game ----------
 let gameTimer=null, imgEl=null;
@@ -896,7 +939,9 @@ function startGame(room){
     // Double-RAF so CSS transitions/layout settle
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       resizeCanvas(); fitView(); render(); startTimer();
-      addMsg({sys:true,text:'Game started — drag pieces from the right onto the board.'});
+      addMsg({sys:true,text:state.trayVertical
+        ? 'Game started — drag pieces from the tray below onto the board.'
+        : 'Game started — drag pieces from the right onto the board.'});
       console.log('[jigsaw] started. scale=',state.scale,'offX=',state.offsetX,'offY=',state.offsetY,'pieces=',state.pieces.length);
     }));
   };
@@ -955,22 +1000,53 @@ function resizeCanvas(){
   canvas.style.width=r.width+'px'; canvas.style.height=r.height+'px';
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-window.addEventListener('resize',()=>{resizeCanvas(); if(state.started) render();});
+window.addEventListener('resize',()=>{resizeCanvas(); if(state.started){ fitView(); render(); }});
 
 function fitView(){
   if(!canvas.parentElement) return;
   const r=canvas.parentElement.getBoundingClientRect();
-  const totW=BOARD_W+TRAY_W;
-  const s=Math.min(r.width/totW, r.height/BOARD_H)*0.94;
-  state.scale=s;
-  state.offsetX=(r.width - totW*s)/2;
-  state.offsetY=(r.height - BOARD_H*s)/2;
+  // Portrait (taller than wide) → tray strip below the board so the puzzle gets
+  // the full screen width. Landscape/desktop keeps the side tray.
+  const vert = r.width < r.height;
+  state.trayVertical = vert;
+  $('#canvasWrap').classList.toggle('vertical', vert);
+  if(vert){
+    const totH = BOARD_H + TRAY_VERT_H;
+    const s = Math.min(r.width/BOARD_W, r.height/totH)*0.94;
+    state.scale = s;
+    state.offsetX = (r.width - BOARD_W*s)/2;
+    state.offsetY = (r.height - totH*s)/2;
+  } else {
+    const totW = BOARD_W+TRAY_W;
+    const s = Math.min(r.width/totW, r.height/BOARD_H)*0.94;
+    state.scale = s;
+    state.offsetX = (r.width - totW*s)/2;
+    state.offsetY = (r.height - BOARD_H*s)/2;
+  }
 }
 function s2w(sx,sy){
   const r=canvas.getBoundingClientRect();
-  return {x:(sx-r.left-state.offsetX)/state.scale, y:(sy-r.top-state.offsetY)/state.scale};
+  let dx=(sx-r.left-state.offsetX)/state.scale, dy=(sy-r.top-state.offsetY)/state.scale;
+  // Pointer inside the bottom tray strip → map back to the shared right-tray coords
+  if(state.trayVertical && dy>=BOARD_H){
+    let u=(dx-TRAY_VERT_PAD)/(BOARD_W-2*TRAY_VERT_PAD);
+    let v=(dy-BOARD_H-TRAY_VERT_PAD)/(TRAY_VERT_H-2*TRAY_VERT_PAD);
+    u=Math.max(0,Math.min(1,u)); v=Math.max(0,Math.min(1,v));
+    return {x:BOARD_W+v*TRAY_W, y:u*BOARD_H};
+  }
+  return {x:dx, y:dy};
 }
-function w2s(x,y){ return {x:x*state.scale+state.offsetX, y:y*state.scale+state.offsetY}; }
+function w2s(x,y){
+  let dx=x, dy=y;
+  // Loose pieces (world x >= BOARD_W) render inside the bottom strip in portrait mode
+  if(state.trayVertical && x>=BOARD_W){
+    const u=Math.max(0,Math.min(1,y/BOARD_H));
+    const v=Math.max(0,Math.min(1,(x-BOARD_W)/TRAY_W));
+    dx=TRAY_VERT_PAD+u*(BOARD_W-2*TRAY_VERT_PAD);
+    dy=BOARD_H+TRAY_VERT_PAD+v*(TRAY_VERT_H-2*TRAY_VERT_PAD);
+  }
+  return {x:dx*state.scale+state.offsetX, y:dy*state.scale+state.offsetY};
+}
 
 let piecePaths=[], tabs=[];
 function precomputePaths(){
@@ -1034,8 +1110,18 @@ function render(){
     let a=w2s(i*pw,0), b=w2s(i*pw,BOARD_H); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     let c=w2s(0,i*ph), d=w2s(BOARD_W,i*ph); ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
   }
-  const tA=w2s(BOARD_W,0), tB=w2s(BOARD_W,BOARD_H);
-  ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
+  if(state.trayVertical){
+    // Tray strip below the board (dashed separator + faint backdrop)
+    const sY = BOARD_H*state.scale+state.offsetY;
+    const sX0 = state.offsetX, sX1 = BOARD_W*state.scale+state.offsetX;
+    ctx.fillStyle='rgba(255,255,255,.018)';
+    ctx.fillRect(sX0, sY, sX1-sX0, TRAY_VERT_H*state.scale);
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(sX0,sY); ctx.lineTo(sX1,sY); ctx.stroke(); ctx.setLineDash([]);
+  } else {
+    const tA=w2s(BOARD_W,0), tB=w2s(BOARD_W,BOARD_H);
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
+  }
   if(!state.imgEl){requestAnimationFrame(render); return;}
   const sorted=[...state.pieces].sort((a,b)=>a.z-b.z);
   const moverColor=id=>state.room?.players.find(x=>x.id===id)?.color;
@@ -1217,8 +1303,10 @@ canvas.addEventListener('touchmove',e=>{ if(e.touches.length===2){e.preventDefau
     state.scale=Math.max(.3,Math.min(3,pS*d/pD));
     const mx=(e.touches[0].clientX+e.touches[1].clientX)/2, my=(e.touches[0].clientY+e.touches[1].clientY)/2;
     const r=canvas.getBoundingClientRect();
-    state.offsetX=mx-r.left-(BOARD_W/2+TRAY_W/2)*state.scale;
-    state.offsetY=my-r.top-(BOARD_H/2)*state.scale;
+    const cx=state.trayVertical ? BOARD_W/2 : (BOARD_W+TRAY_W)/2;
+    const cy=state.trayVertical ? (BOARD_H+TRAY_VERT_H)/2 : BOARD_H/2;
+    state.offsetX=mx-r.left-cx*state.scale;
+    state.offsetY=my-r.top-cy*state.scale;
   }}},{passive:false});
 
 // ---------- Top bar ----------
