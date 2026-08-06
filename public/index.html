@@ -786,8 +786,9 @@ SOCKET.on('pieceMove',mv=>{
   const p=state.pieces.find(pp=>pp.id===mv.id); if(!p) return;
   if(state.dragging?.id===mv.id) return;
   p.x=mv.x; p.y=mv.y; p.z=mv.z; p.placed=mv.placed; p.lastMover=mv.lastMover;
-  $('#progress').innerHTML=`${mv.placedCount}/${state.pieces.length}`;
-  $('#progBar').style.width=(mv.placedCount/state.pieces.length*100)+'%';
+  const placedCount=typeof mv.placedCount==='number'?mv.placedCount:state.pieces.filter(pp=>pp.placed).length;
+  $('#progress').textContent=`${placedCount}/${state.pieces.length}`;
+  $('#progBar').style.width=(placedCount/state.pieces.length*100)+'%';
   if(mv.finished) showWin();
 });
 SOCKET.on('chatMsg',m=>addMsg(m));
@@ -1037,7 +1038,18 @@ function onDown(e){
   if(e.button===2||e.ctrlKey){ startPan(e); return; }
   const hit=hitPiece(x,y);
   console.log('pointerdown world=',x.toFixed(0),y.toFixed(0),'hit=',hit?.id,'pieces=',state.pieces.length,'scale=',state.scale.toFixed(3));
-  if(hit){ state.dragging={id:hit.id}; hit.z=1e5+(performance.now()%1e4); state.dragOffX=x-hit.x; state.dragOffY=y-hit.y; canvas.classList.add('dragging'); }
+  if(hit){
+    state.dragging={
+      id:hit.id,
+      startX:hit.x,
+      startY:hit.y,
+      startPlaced:hit.placed,
+    };
+    hit.z=1e5+(performance.now()%1e4);
+    state.dragOffX=x-hit.x;
+    state.dragOffY=y-hit.y;
+    canvas.classList.add('dragging');
+  }
   else startPan(e);
 }
 function onMove(e){
@@ -1056,17 +1068,44 @@ function onMove(e){
 function onUp(e){
   if(state.panning){ state.panning=false; canvas.classList.remove('panning'); return; }
   if(state.dragging){
-    const p=state.pieces.find(pp=>pp.id===state.dragging.id); canvas.classList.remove('dragging');
+    const dragInfo = state.dragging;
+    const p = state.pieces.find(pp=>pp.id===dragInfo.id);
+    canvas.classList.remove('dragging');
+    state.dragging = null;
     if(p){
       const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
-      const col=Math.round(p.x/pw), row=Math.round(p.y/ph);
-      if(col>=0&&col<n&&row>=0&&row<n){
-        const sx=col*pw, sy=row*ph;
-        if(Math.abs(p.x-sx)<pw*.35&&Math.abs(p.y-sy)<ph*.35){ p.x=sx; p.y=sy; p.placed=true; }
+      const slotC = p.slot ? p.slot.c : (p.id % n);
+      const slotR = p.slot ? p.slot.r : Math.floor(p.id / n);
+      const slotX = slotC * pw;
+      const slotY = slotR * ph;
+
+      const isOwnSlot = Math.abs(p.x - slotX) < pw * 0.35 && Math.abs(p.y - slotY) < ph * 0.35;
+
+      if (isOwnSlot) {
+        p.x = slotX;
+        p.y = slotY;
+        p.placed = true;
+      } else {
+        p.placed = false;
+        // If a wrong piece is dropped over an already occupied slot, return it to its pre-drag position
+        const overOccupiedSlot = state.pieces.some(pc => {
+          if (!pc.placed || pc.id === p.id) return false;
+          const pcC = pc.slot ? pc.slot.c : (pc.id % n);
+          const pcR = pc.slot ? pc.slot.r : Math.floor(pc.id / n);
+          const pcX = pcC * pw;
+          const pcY = pcR * ph;
+          return Math.abs(p.x - pcX) < pw * 0.35 && Math.abs(p.y - pcY) < ph * 0.35;
+        });
+
+        if (overOccupiedSlot) {
+          p.x = dragInfo.startX;
+          p.y = dragInfo.startY;
+          p.placed = !!dragInfo.startPlaced;
+        }
       }
+
       SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z});
     }
-    state.dragging=null;
   }
   if(activePointer===e.pointerId) activePointer=null;
 }
