@@ -53,36 +53,53 @@ function genCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
-const BOARD_W = 1000, BOARD_H = 1000, TRAY_W = 380;
+const BASE_BOARD_SIZE = 1000;
+const TRAY_W = 380;
+
+// Calculate board dimensions from image aspect ratio.
+// One dimension stays at BASE_BOARD_SIZE, the other scales to match image ratio.
+function calcBoardDims(imgW, imgH) {
+  if (!imgW || !imgH) return { w: BASE_BOARD_SIZE, h: BASE_BOARD_SIZE };
+  const ratio = imgW / imgH;
+  if (ratio >= 1) {
+    return { w: BASE_BOARD_SIZE, h: BASE_BOARD_SIZE / ratio };
+  } else {
+    return { w: BASE_BOARD_SIZE * ratio, h: BASE_BOARD_SIZE };
+  }
+}
 
 // Scatter inside the shared tray region so pieces of every difficulty actually
 // FIT on screen (3x3 pieces are 333 wide — the old W+40..W+340 range pushed them
 // half off the right edge of the tray).
-function trayScatter(n) {
-  const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+function trayScatter(n, boardW, boardH) {
+  const pieceW = boardW / n, pieceH = boardH / n;
   const spanX = Math.max(0, TRAY_W - 40 - pieceW);
   return {
-    x: BOARD_W + 20 + Math.random() * spanX,
-    y: 40 + Math.random() * (BOARD_H - pieceH - 80),
+    x: boardW + 20 + Math.random() * spanX,
+    y: 40 + Math.random() * (boardH - pieceH - 80),
   };
 }
 
 // Keep loose pieces on the reachable table — a piece dropped off in the void is
 // a lost piece and an unwinnable game.
-function clampPiece(n, x, y) {
-  const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+function clampPiece(n, x, y, boardW, boardH) {
+  const pieceW = boardW / n, pieceH = boardH / n;
   return {
-    x: Math.max(-pieceW * 0.45, Math.min(BOARD_W + TRAY_W - pieceW * 0.45, x)),
-    y: Math.max(-pieceH * 0.45, Math.min(BOARD_H - pieceH * 0.3, y)),
+    x: Math.max(-pieceW * 0.45, Math.min(boardW + TRAY_W - pieceW * 0.45, x)),
+    y: Math.max(-pieceH * 0.45, Math.min(boardH - pieceH * 0.3, y)),
   };
 }
 
 function roomState(r) {
+  const boardW = r.image?.boardW || BASE_BOARD_SIZE;
+  const boardH = r.image?.boardH || BASE_BOARD_SIZE;
   return {
     code: r.code,
     hostId: r.hostId,
     difficulty: r.difficulty,
     hasImage: !!r.image,
+    boardW,
+    boardH,
     players: Object.values(r.players).map(p => ({
       id: p.id, name: p.name, color: p.color, emoji: p.emoji, ready: p.ready,
       piecesPlaced: r.pieces.filter(pc => pc.placed && pc.lastMover === p.id).length,
@@ -198,7 +215,8 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Image too large (max ~6MB). Try a smaller photo.');
       return;
     }
-    room.image = { dataUrl, w, h };
+    const { w: boardW, h: boardH } = calcBoardDims(w, h);
+    room.image = { dataUrl, w, h, boardW, boardH };
     broadcastState(room);
   });
 
@@ -211,6 +229,8 @@ io.on('connection', (socket) => {
     if (room.started) return;
 
     const n = room.difficulty;
+    const boardW = room.image.boardW || BASE_BOARD_SIZE;
+    const boardH = room.image.boardH || BASE_BOARD_SIZE;
     room.pieces = [];
 
     // Scatter in a "tray" region (right side) — server only stores logical coords;
@@ -218,7 +238,7 @@ io.on('connection', (socket) => {
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
         const id = r * n + c;
-        const t = trayScatter(n);
+        const t = trayScatter(n, boardW, boardH);
         room.pieces.push({
           id,
           x: t.x, y: t.y,
@@ -245,12 +265,14 @@ io.on('connection', (socket) => {
     const p = room.pieces.find(pp => pp.id === id);
     if (!p) return;
     const n = room.difficulty;
-    const pieceW = BOARD_W / n, pieceH = BOARD_H / n;
+    const boardW = room.image?.boardW || BASE_BOARD_SIZE;
+    const boardH = room.image?.boardH || BASE_BOARD_SIZE;
+    const pieceW = boardW / n, pieceH = boardH / n;
     // Sanitize + clamp: no NaN poisoning, no pieces lost in the void
     x = Number(x); y = Number(y); z = Number(z);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (!Number.isFinite(z)) z = p.z || 0;
-    const cl = clampPiece(n, x, y);
+    const cl = clampPiece(n, x, y, boardW, boardH);
     x = cl.x; y = cl.y;
     // Snap check: if within threshold of slot position, snap
     const slotX = p.slot.c * pieceW;
@@ -311,9 +333,11 @@ io.on('connection', (socket) => {
     if (!room?.started || room.finished) return;
     if (room.hostId !== socket.id) return;
     const n = room.difficulty;
+    const boardW = room.image?.boardW || BASE_BOARD_SIZE;
+    const boardH = room.image?.boardH || BASE_BOARD_SIZE;
     for (const p of room.pieces) {
       if (p.placed) continue;
-      const t = trayScatter(n);
+      const t = trayScatter(n, boardW, boardH);
       p.x = t.x;
       p.y = t.y;
       p.z = (p.z || 0) + 1;
