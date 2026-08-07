@@ -863,9 +863,30 @@ setupDifficulty('#diffPick2');
 $('#startBtn').addEventListener('click',()=>SOCKET.emit('startGame'));
 
 // ---------- Socket state ----------
-SOCKET.on('connect',()=>{});
+// Phones suspend WebSockets when another app is opened. Socket.IO already
+// retries, while the server keeps the room recoverable; explicitly nudging the
+// connection when the page becomes visible makes returning to the puzzle fast.
+let hadConnection = false;
+SOCKET.on('connect',()=>{
+  SOCKET.emit('resumeRoom');
+  if (hadConnection) {
+    toast(SOCKET.recovered ? 'Back online — puzzle restored.' : 'Back online — reconnecting to the puzzle.');
+  }
+  hadConnection = true;
+});
 SOCKET.on('error',msg=>toast(msg));
-SOCKET.on('disconnect',()=>toast('Disconnected — refresh to reconnect.'));
+SOCKET.on('disconnect',reason=>{
+  if (reason !== 'io client disconnect') toast('Connection paused — reconnecting…', 3500);
+});
+window.addEventListener('online',()=>{
+  if (!SOCKET.connected) SOCKET.connect();
+});
+document.addEventListener('visibilitychange',()=>{
+  if (document.visibilityState === 'visible') {
+    if (!SOCKET.connected) SOCKET.connect();
+    else SOCKET.emit('resumeRoom');
+  }
+});
 
 SOCKET.on('state',room=>{
   state.room=room; const was=state.started; state.started=room.started; state.isHost=room.hostId===state.selfId;
