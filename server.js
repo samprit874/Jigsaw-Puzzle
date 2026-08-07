@@ -90,6 +90,39 @@ function clampPiece(n, x, y, boardW, boardH) {
   };
 }
 
+// Start a fresh puzzle session in the SAME room (no lobby detour) — used by the
+// win popup's "Play again" and "New game with another photo" buttons. Optionally
+// swaps in a brand-new photo; otherwise the current one is replayed.
+function startSession(room, image) {
+  if (image) room.image = image;
+  const n = room.difficulty;
+  const boardW = room.image.boardW || BASE_BOARD_SIZE;
+  const boardH = room.image.boardH || BASE_BOARD_SIZE;
+  room.pieces = [];
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const id = r * n + c;
+      const t = trayScatter(n, boardW, boardH);
+      room.pieces.push({
+        id,
+        x: t.x, y: t.y,
+        rotation: 0,
+        z: id,
+        placed: false,
+        slot: { r, c },
+        lastMover: null,
+      });
+    }
+  }
+  room.started = true;
+  room.finished = false;
+  room.startedAt = Date.now();
+  room.hints = 0;
+  room.shuffled = false;
+  room.chat.push({ system: true, text: '🧩 New game started! Work together 💞', t: Date.now() });
+  broadcastState(room);
+}
+
 function roomState(r) {
   const boardW = r.image?.boardW || BASE_BOARD_SIZE;
   const boardH = r.image?.boardH || BASE_BOARD_SIZE;
@@ -256,6 +289,29 @@ io.on('connection', (socket) => {
     room.hints = 0;
     room.chat.push({ system: true, text: '🧩 Puzzle started! Work together 💞', t: Date.now() });
     broadcastState(room);
+  });
+
+  socket.on('newGame', () => {
+    if (!currentRoom) return;
+    const room = rooms.get(currentRoom);
+    if (!room?.started) return;
+    if (room.hostId !== socket.id) return;
+    if (!room.image) { socket.emit('error', 'Upload a photo first!'); return; }
+    startSession(room, null);
+  });
+
+  // Win popup → "New photo game": swap in another photo and start immediately.
+  socket.on('newGameWithImage', ({ dataUrl, w, h }) => {
+    if (!currentRoom) return;
+    const room = rooms.get(currentRoom);
+    if (!room?.started) return;
+    if (room.hostId !== socket.id) return;
+    if (dataUrl.length > 7 * 1024 * 1024) {
+      socket.emit('error', 'Image too large (max ~6MB). Try a smaller photo.');
+      return;
+    }
+    const { w: boardW, h: boardH } = calcBoardDims(w, h);
+    startSession(room, { dataUrl, w, h, boardW, boardH });
   });
 
   socket.on('movePiece', ({ id, x, y, z, drag }) => {

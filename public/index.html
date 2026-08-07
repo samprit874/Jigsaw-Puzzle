@@ -337,9 +337,18 @@
   }
   .modal-bg.show { display:flex; }
   .modal {
+    position:relative;
     width:100%; max-width:380px; background:var(--bg-elev); border:1px solid var(--border);
     border-radius:var(--radius-lg); padding:28px; text-align:center; box-shadow:var(--shadow-lg);
   }
+  .win-close {
+    position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--border); background:var(--bg); color:var(--text-dim);
+    font-size:13px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .win-close:hover { background:var(--bg-elev-2); color:var(--text); border-color:var(--border-strong); }
+  .win-close:active { transform:scale(.94); }
   .modal h2 { font-size:22px; font-weight:600; letter-spacing:-.01em; margin-bottom:6px; }
   .modal p { color:var(--text-dim); font-size:13.5px; margin-bottom:14px; }
   .modal .time { font-size:13px; color:var(--text-dim); margin-bottom:14px; }
@@ -573,15 +582,23 @@
 
 <div class="modal-bg" id="winModal">
   <div class="modal">
+    <button class="win-close" id="winClose" title="Close" aria-label="Close popup">✕</button>
     <div class="trophy">🏆</div>
     <h2>Puzzle complete!</h2>
     <p id="winText">Beautiful work — you finished it together.</p>
     <div class="time">⏱ <b id="winTime">00:00</b></div>
     <div class="win-stats-title">Placed by</div>
     <div id="winStats"></div>
-    <div class="btn-row" style="justify-content:center">
+    <div class="btn-row" style="justify-content:center; flex-wrap:wrap">
       <button class="btn primary keep-size" id="playAgainBtn" style="flex:0 0 auto; padding:0 20px;">Play again</button>
+      <button class="btn keep-size" id="newPhotoBtn" style="flex:0 0 auto; padding:0 16px;">📷 New photo game</button>
     </div>
+    <div class="guest-wait hidden" id="winGuestWait">
+      <div class="spin"></div>
+      <div class="t">Host is setting up the next game…</div>
+      <div class="s">They can replay the same photo or pick a new one — you'll be right back in it.</div>
+    </div>
+    <input type="file" id="newPhotoInput" accept="image/*" hidden />
   </div>
 </div>
 
@@ -623,7 +640,7 @@ $$('.seg').forEach(seg=>{
 // ---------- State ----------
 const state={
   selfId:null, inRoom:false, room:null, difficulty:4,
-  imageUrl:null, imgEl:null, isHost:false, started:false,
+  imageUrl:null, imgEl:null, isHost:false, started:false, startedAt:null,
   boardW:BASE_BOARD_SIZE, boardH:BASE_BOARD_SIZE,
   scale:1, offsetX:0, offsetY:0,
   fitScale:1, minScale:.15, maxScale:4,
@@ -783,8 +800,10 @@ document.addEventListener('visibilitychange',()=>{
 
 SOCKET.on('state',room=>{
   state.room=room; const was=state.started; state.started=room.started; state.isHost=room.hostId===state.selfId;
-  // Update board dimensions from room (based on image aspect ratio)
-  if (room.boardW && room.boardH) {
+  // Update board dimensions from room (based on image aspect ratio). A changed
+  // size — e.g. a new photo started from the win popup — forces a fresh view fit.
+  const boardChanged=!!(room.boardW && room.boardH && (room.boardW!==state.boardW || room.boardH!==state.boardH));
+  if (boardChanged) {
     state.boardW = room.boardW;
     state.boardH = room.boardH;
   }
@@ -793,7 +812,10 @@ SOCKET.on('state',room=>{
     else if(!room.started&&was) stopGame();
   }
   if(state.started){
-    if(!state.pieces.length||state.pieces.length!==room.pieces.length){
+    // A brand-new session in the same room (win popup replay / new photo) has a
+    // fresh startedAt — restart the clock instead of keeping the old elapsed time.
+    if(room.startedAt && room.startedAt!==state.startedAt){ state.startedAt=room.startedAt; startTimer(); }
+    if(!state.pieces.length||state.pieces.length!==room.pieces.length||boardChanged){
       state.pieces=room.pieces.map(p=>({...p})); fitView();
     } else {
       for(const sp of room.pieces){ const lp=state.pieces.find(pp=>pp.id===sp.id);
@@ -907,7 +929,7 @@ if(window.visualViewport){
 // ---------- Game ----------
 let gameTimer=null, imgEl=null;
 function startGame(room){
-  state.started=true; state.pieces=room.pieces.map(p=>({...p})); state.difficulty=room.difficulty;
+  state.started=true; state.startedAt=room.startedAt||Date.now(); state.pieces=room.pieces.map(p=>({...p})); state.difficulty=room.difficulty;
   $('#lobby').style.display='none'; $('#gameWrap').classList.add('active');
   $('#sidePanel').classList.remove('open');
   // Force layout reflow
@@ -927,7 +949,7 @@ function startGame(room){
   else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>{ imgEl.src=d; state.imageUrl=d; }); else toast('Failed to load image.'); });
 }
 function stopGame(){
-  state.started=false; state.finished=false; state.pieces=[];
+  state.started=false; state.startedAt=null; state.finished=false; state.pieces=[];
   $('#gameWrap').classList.remove('active'); $('#lobby').style.display='';
   $('#inLobby').classList.remove('hidden'); $('#preJoin').classList.add('hidden');
   clearInterval(gameTimer);
@@ -963,10 +985,46 @@ function showWin(){
       </div>`).join('');
     stats.style.display='';
   } else stats.style.display='none';
+  // Host gets the "start the next game" buttons; guests get a wait note.
+  // Everyone can close the popup with ✕ and keep chatting in the room.
+  const hostCanStart=!!state.isHost;
+  $('#playAgainBtn').style.display=hostCanStart?'':'none';
+  $('#newPhotoBtn').style.display=hostCanStart?'':'none';
+  $('#winGuestWait').classList.toggle('hidden',hostCanStart);
   $('#winModal').classList.add('show');
   confetti(); clearInterval(gameTimer);
 }
-$('#playAgainBtn').addEventListener('click',()=>{$('#winModal').classList.remove('show'); SOCKET.emit('restart');});
+// ✕ closes the popup but KEEPS you in the room — chat, admire the board, or
+// let the host kick off the next session without a lobby detour.
+$('#winClose').addEventListener('click',()=>$('#winModal').classList.remove('show'));
+$('#winModal').addEventListener('click',e=>{ if(e.target===$('#winModal')) $('#winModal').classList.remove('show'); });
+// Replay the same photo, same room — no lobby.
+$('#playAgainBtn').addEventListener('click',()=>{
+  $('#winModal').classList.remove('show'); SOCKET.emit('newGame');
+});
+// Host: start a brand-new session with ANOTHER photo, straight from the popup.
+$('#newPhotoBtn').addEventListener('click',()=>$('#newPhotoInput').click());
+$('#newPhotoInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; e.target.value='';
+  if(!f) return;
+  if(!f.type.startsWith('image/')) return toast('Please select an image.');
+  if(f.size>6*1024*1024) return toast('Image too large (max 6 MB).');
+  const r=new FileReader();
+  r.onload=()=>{
+    const im=new Image();
+    im.onload=()=>{
+      let w=im.width,h=im.height,M=1200,s=1;
+      if(w>M||h>M){s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(im,0,0,w,h);
+      $('#winModal').classList.remove('show');
+      toast('Starting a new game with your photo…',2500);
+      SOCKET.emit('newGameWithImage',{dataUrl:c.toDataURL('image/jpeg',0.85),w,h});
+    };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
+});
 
 // ---------- Canvas ----------
 const canvas=$('#board'), ctx=canvas.getContext('2d');

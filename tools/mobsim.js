@@ -264,6 +264,27 @@ async function main() {
   check('win modal shown', $('#winModal').classList.contains('show'));
   check(`final counter ${TOTAL}/${TOTAL}`, $('#progress').textContent === `${TOTAL}/${TOTAL}`);
 
+  // --- 11. ✕ closes the popup and KEEPS you in the room (no lobby detour) ---
+  check('host sees the start-next-game buttons', $('#playAgainBtn').style.display !== 'none' && $('#newPhotoBtn').style.display !== 'none');
+  $('#winClose').click();
+  await sleep(120);
+  check('cross closes the win popup', !$('#winModal').classList.contains('show'));
+  check('still in the game room (no lobby)', $('#gameWrap').classList.contains('active') && $('#lobby').style.display === 'none');
+
+  // --- 12. host starts a new session from the popup: fresh photo ---
+  // (simulates the file picker — emits what the upload handler would send)
+  window.__api.socket.emit('newGameWithImage', { dataUrl: 'data:image/jpeg;base64,BBBB', w: 640, h: 480 });
+  await sleep(600);
+  check('new session started in the same room', state().started === true && !state().finished && state().pieces.length === TOTAL);
+  check('new session pieces are loose again', state().pieces.every(p => !p.placed));
+  check('win popup stays hidden after restart', !$('#winModal').classList.contains('show'));
+
+  // --- 13. "Play again" replays the same photo, still no lobby ---
+  window.__api.socket.emit('newGame');
+  await sleep(500);
+  check('play-again restarts in the same room', state().started === true && !state().finished);
+  check('still in the game room after replay', $('#gameWrap').classList.contains('active') && $('#lobby').style.display === 'none');
+
   console.log(failures ? `\n${failures} MOBILE CHECK(S) FAILED ✘` : '\nALL MOBILE CHECKS PASS ✔');
   stop(failures ? 1 : 0);
 }
