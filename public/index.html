@@ -1173,22 +1173,39 @@ function computeTrayLayout(){
   const availH=Math.max(1, state.trayH-2*pad);
   const s=trayPieceScale();
   const tw=pw*s, th=ph*s;
-  const cellW=availW/n, cellH=availH/n;
-  const jx=Math.max(0,(cellW-tw)*0.45);
-  const jy=Math.max(0,(cellH-th)*0.45);
   const ROT=Math.PI/9; // ±20° — enough to look like a real pile
-  for(const p of list){
-    const col=p.id%n, row=Math.floor(p.id/n);
+  // Scatter loose pieces inside a CIRCULAR (elliptical) pile in the middle of the
+  // tray strip instead of a rigid n×n grid. The golden-angle spiral gives an even,
+  // natural-looking distribution; deterministic per-piece jitter keeps the pile
+  // STABLE (tiles never reshuffle under your fingers between frames).
+  const ccx=pad+availW/2;
+  const ccy=state.boardH+pad+availH/2;
+  // Outer radii — leave room for each tile's (rotated) half-extent so nothing clips.
+  const baseRx=availW/2, baseRy=availH/2;
+  const m=list.length;
+  const GOLDEN=Math.PI*(3-Math.sqrt(5)); // ~137.5°
+  list.forEach((p,i)=>{
     const rot=(seededRand(p.id*7+3)*2-1)*ROT;
-    const cx=pad+(col+0.5)*cellW+(seededRand(p.id*3+1)*2-1)*jx;
-    const cy=state.boardH+pad+(row+0.5)*cellH+(seededRand(p.id*5+2)*2-1)*jy;
-    // Clamp so the ROTATED tile stays fully inside the strip
+    // Half-extent of the ROTATED tile — used to keep the whole tile inside the strip.
     const hx=(Math.abs(Math.cos(rot))*tw+Math.abs(Math.sin(rot))*th)/2;
     const hy=(Math.abs(Math.sin(rot))*tw+Math.abs(Math.cos(rot))*th)/2;
-    const px=Math.max(pad+hx, Math.min(pad+availW-hx, cx));
-    const py=Math.max(state.boardH+pad+hy, Math.min(state.boardH+pad+availH-hy, cy));
-    map.set(p.id,{ x:px-tw/2, y:py-th/2, s, r:rot });
-  }
+    const rx=Math.max(8, baseRx-hx);
+    const ry=Math.max(8, baseRy-hy);
+    // Golden-angle spiral: even, natural pile (center-heavy, not a ring or line).
+    const t=m<=1?0:(i+0.5)/m;
+    const rad=Math.sqrt(t);
+    const ang=i*GOLDEN+seededRand(p.id*11+4)*Math.PI*2;
+    // Deterministic radial + angular jitter for a more "thrown together" look.
+    const jr=rad*((seededRand(p.id*3+1)*2-1)*0.14);
+    const ja=(seededRand(p.id*5+2)*2-1)*0.18;
+    const rr=Math.max(0, Math.min(1, rad+jr));
+    let cx=ccx+rr*rx*Math.cos(ang+ja);
+    let cy=ccy+rr*ry*Math.sin(ang+ja);
+    // Hard clamp so the ROTATED tile stays fully inside the strip.
+    cx=Math.max(pad+hx, Math.min(pad+availW-hx, cx));
+    cy=Math.max(state.boardH+pad+hy, Math.min(state.boardH+pad+availH-hy, cy));
+    map.set(p.id,{ x:cx-tw/2, y:cy-th/2, s, r:rot });
+  });
   return map;
 }
 

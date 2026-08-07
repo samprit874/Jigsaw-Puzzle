@@ -79,8 +79,25 @@ async function main() {
   }
 
   // --- 2+3. grab top tile: no teleport on grab; drag to slot places it ---
+  // In a scattered CIRCULAR pile the first Map entry isn't necessarily grabbable:
+  // a higher-z tile can cover its center. Pick the topmost tile whose own center
+  // actually hits itself (matches real grab behavior).
+  function pickGrabableTile(prevId) {
+    const tm = window.__api.tray();
+    const zOf = id => state().pieces.find(p => p.id === id)?.z || 0;
+    const cands = [...tm.entries()]
+      .filter(([id]) => id !== prevId)
+      .sort((a, b) => zOf(b[0]) - zOf(a[0]));
+    for (const [id, t] of cands) {
+      const c = w2s(t.x + pw * t.s / 2, t.y + pw * t.s / 2);
+      const hit = window.__api.hit(c.x, c.y);
+      if (hit && hit.id === id) return { id, t };
+    }
+    return { id: cands[0][0], t: cands[0][1] };
+  }
   tray = window.__api.tray();
-  const [firstId, firstTile] = [...tray.entries()][0];
+  const first = pickGrabableTile();
+  const firstId = first.id, firstTile = first.t;
   const tileCenterWorld = { x: firstTile.x + pw * firstTile.s / 2, y: firstTile.y + pw * firstTile.s / 2 };
   const grabScreen = w2s(tileCenterWorld.x, tileCenterWorld.y);
   pointer('pointerdown', grabScreen.x, grabScreen.y, 3);
@@ -137,8 +154,8 @@ async function main() {
   check('pinch ends cleanly', !window.__api.isPinch() && state().dragging === null && window.__api.pointerCount() === 0);
 
   // --- 5. second finger mid-drag cancels the drag, piece reverts ---
-  tray = window.__api.tray();
-  const [cId, cTile] = [...tray.entries()][0];
+  const cPick = pickGrabableTile();
+  const cId = cPick.id, cTile = cPick.t;
   const cBefore = state().pieces.find(p => p.id === cId);
   const cStart = { x: cBefore.x, y: cBefore.y, placed: cBefore.placed };
   const cGrab = w2s(cTile.x + pw * cTile.s / 2, cTile.y + pw * cTile.s / 2);
@@ -216,8 +233,8 @@ async function main() {
   check('double-tap resets view', Math.abs(state().scale - sFit) < 1e-9, `scale=${state().scale.toFixed(3)} vs fit ${sFit.toFixed(3)}`);
 
   // --- 9. drops clamp: pieces cannot be lost off the table ---
-  tray = window.__api.tray();
-  const [lId, lTile] = [...tray.entries()][0];
+  const lPick = pickGrabableTile();
+  const lId = lPick.id, lTile = lPick.t;
   const lGrab = w2s(lTile.x + pw * lTile.s / 2, lTile.y + pw * lTile.s / 2);
   await dragScreen(lGrab.x, lGrab.y, -800, -900, 41, 6); // fling far off-screen
   const lost = state().pieces.find(p => p.id === lId);
@@ -242,10 +259,25 @@ async function main() {
     const unplaced = state().pieces.filter(p => !p.placed);
     if (!unplaced.length) break;
     const tm = window.__api.tray();
-    let target = unplaced.find(p => tm.has(p.id));
-    let fromScr;
-    if (target) {
-      const t = tm.get(target.id);
+    // Grab the topmost tray tile whose center actually hits itself — in the
+    // circular pile a covered tile center would otherwise grab the wrong piece.
+    const tilePick = (() => {
+      const zOf = id => state().pieces.find(p => p.id === id)?.z || 0;
+      const cands = [...tm.entries()]
+        .filter(([id]) => unplaced.some(p => p.id === id))
+        .sort((a, b) => zOf(b[0]) - zOf(a[0]));
+      for (const [id, t] of cands) {
+        const c = w2s(t.x + pw * t.s / 2, t.y + pw * t.s / 2);
+        const hit = window.__api.hit(c.x, c.y);
+        if (hit && hit.id === id) return { target: unplaced.find(p => p.id === id), t };
+      }
+      if (cands[0]) return { target: unplaced.find(p => p.id === cands[0][0]), t: cands[0][1] };
+      return null;
+    })();
+    let target, fromScr;
+    if (tilePick) {
+      target = tilePick.target;
+      const t = tilePick.t;
       fromScr = w2s(t.x + pw * t.s / 2, t.y + pw * t.s / 2);
     } else {
       target = unplaced[0];
