@@ -591,10 +591,12 @@
 <script>
 /* Jigsaw — realtime multiplayer client */
 const SOCKET = io({ transports:['websocket','polling'] });
-const BOARD_W = 1000, BOARD_H = 1000, TRAY_W = 380;
+// Base board size (one dimension will be this, the other scales to image ratio)
+const BASE_BOARD_SIZE = 1000;
+const TRAY_W = 380;
 // Portrait layout: the tray is a strip BELOW the board instead of to the right.
 // Same shared world coordinates — only the on-screen mapping of the tray region
-// (x >= BOARD_W) changes, and the board region is identical on every device.
+// (x >= boardW) changes, and the board region is identical on every device.
 const TRAY_VERT_H = 180, TRAY_VERT_PAD = 12;
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -622,6 +624,7 @@ $$('.seg').forEach(seg=>{
 const state={
   selfId:null, inRoom:false, room:null, difficulty:4,
   imageUrl:null, imgEl:null, isHost:false, started:false,
+  boardW:BASE_BOARD_SIZE, boardH:BASE_BOARD_SIZE,
   scale:1, offsetX:0, offsetY:0,
   fitScale:1, minScale:.15, maxScale:4,
   trayVertical:false, trayH:TRAY_VERT_H,
@@ -780,6 +783,11 @@ document.addEventListener('visibilitychange',()=>{
 
 SOCKET.on('state',room=>{
   state.room=room; const was=state.started; state.started=room.started; state.isHost=room.hostId===state.selfId;
+  // Update board dimensions from room (based on image aspect ratio)
+  if (room.boardW && room.boardH) {
+    state.boardW = room.boardW;
+    state.boardH = room.boardH;
+  }
   if(state.inRoom){ renderLobby(room);
     if(room.started&&!was) startGame(room);
     else if(!room.started&&was) stopGame();
@@ -994,7 +1002,7 @@ window.addEventListener('resize',()=>{
     state.offsetY*=r.height/lastViewSize.h;
     if(vert){
       const minTrayH = trayHeightFor(state.difficulty);
-      const availWorldH = Math.floor((r.height - state.offsetY)/state.fitScale - BOARD_H);
+      const availWorldH = Math.floor((r.height - state.offsetY)/state.fitScale - state.boardH);
       state.trayH = Math.max(minTrayH, availWorldH);
     }
     clampPan();
@@ -1018,17 +1026,17 @@ function fitView(){
   $('#canvasWrap').classList.toggle('vertical', vert);
   let s;
   if(vert){
-    const totH = BOARD_H + minTrayH;
-    s = Math.min(r.width/BOARD_W, r.height/totH)*0.96;
-    state.offsetX = (r.width - BOARD_W*s)/2;
+    const totH = state.boardH + minTrayH;
+    s = Math.min(r.width/state.boardW, r.height/totH)*0.96;
+    state.offsetX = (r.width - state.boardW*s)/2;
     state.offsetY = Math.max(12, Math.min((r.height - totH*s)/2, 24));
-    const availWorldH = Math.floor((r.height - state.offsetY)/s - BOARD_H);
+    const availWorldH = Math.floor((r.height - state.offsetY)/s - state.boardH);
     state.trayH = Math.max(minTrayH, availWorldH);
   } else {
-    const totW = BOARD_W+TRAY_W;
-    s = Math.min(r.width/totW, r.height/BOARD_H)*0.94;
+    const totW = state.boardW+TRAY_W;
+    s = Math.min(r.width/totW, r.height/state.boardH)*0.94;
     state.offsetX = (r.width - totW*s)/2;
-    state.offsetY = (r.height - BOARD_H*s)/2;
+    state.offsetY = (r.height - state.boardH*s)/2;
   }
   state.scale = s;
   state.fitScale = s;
@@ -1046,7 +1054,7 @@ function clampScale(s){ return Math.max(state.minScale, Math.min(state.maxScale,
 // panned away into the void.
 function clampPan(){
   const r=canvas.getBoundingClientRect();
-  const worldW=BOARD_W+TRAY_W, worldH=BOARD_H+state.trayH, M=60;
+  const worldW=state.boardW+TRAY_W, worldH=state.boardH+state.trayH, M=60;
   if(!r.width||!r.height) return;
   state.offsetX=Math.max(Math.min(state.offsetX, r.width-M), M-worldW*state.scale);
   state.offsetY=Math.max(Math.min(state.offsetY, r.height-M), M-worldH*state.scale);
@@ -1065,7 +1073,7 @@ function w2s(x,y){
   return {x:x*state.scale+state.offsetX, y:y*state.scale+state.offsetY};
 }
 
-// Loose pieces (unplaced, in the world tray region x>=BOARD_W) are laid out as
+// Loose pieces (unplaced, in the world tray region x>=boardW) are laid out as
 // a tile grid INSIDE the portrait tray strip. Returns Map id -> {x,y,s}
 // (tile top-left in world units + tile scale factor). Landscape mode draws
 // tray pieces at their raw world coords instead, so this returns an empty map.
@@ -1073,11 +1081,11 @@ function computeTrayLayout(){
   const map=new Map();
   if(!state.trayVertical) return map;
   const list=state.pieces
-    .filter(p=>!p.placed && p.x>=BOARD_W && state.dragging?.id!==p.id)
+    .filter(p=>!p.placed && p.x>=state.boardW && state.dragging?.id!==p.id)
     .sort((a,b)=>(a.y-b.y)||(a.x-b.x));
   if(!list.length) return map;
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
-  const availW=BOARD_W-2*TRAY_VERT_PAD, availH=state.trayH-2*TRAY_VERT_PAD;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
+  const availW=state.boardW-2*TRAY_VERT_PAD, availH=state.trayH-2*TRAY_VERT_PAD;
   // Pick the row count (1-3) that yields the largest readable tiles.
   let best=null;
   for(let rows=1; rows<=3; rows++){
@@ -1091,7 +1099,7 @@ function computeTrayLayout(){
     const w=pw*best.ts, h=ph*best.ts;
     map.set(p.id,{
       x:TRAY_VERT_PAD+c*cw+(cw-w)/2,
-      y:BOARD_H+TRAY_VERT_PAD+r*ch+(ch-h)/2,
+      y:state.boardH+TRAY_VERT_PAD+r*ch+(ch-h)/2,
       s:best.ts,
     });
   });
@@ -1100,7 +1108,7 @@ function computeTrayLayout(){
 
 let piecePaths=[], tabs=[];
 function precomputePaths(){
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   piecePaths=[]; tabs=[];
   const h=[],v=[];
   for(let r=0;r<n;r++){ h.push([]); v.push([]); for(let c=0;c<n;c++){
@@ -1163,15 +1171,15 @@ function drawFrame(){
   const r=canvas.getBoundingClientRect();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,r.width,r.height);
-  const tl=w2s(0,0), br=w2s(BOARD_W,BOARD_H);
+  const tl=w2s(0,0), br=w2s(state.boardW,state.boardH);
   ctx.fillStyle='rgba(255,255,255,.025)';
   ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=1;
   ctx.fillRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y); ctx.strokeRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y);
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   ctx.strokeStyle='rgba(255,255,255,.03)';
   for(let i=1;i<n;i++){
-    let a=w2s(i*pw,0), b=w2s(i*pw,BOARD_H); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    let c=w2s(0,i*ph), d=w2s(BOARD_W,i*ph); ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+    let a=w2s(i*pw,0), b=w2s(i*pw,state.boardH); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    let c=w2s(0,i*ph), d=w2s(state.boardW,i*ph); ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
   }
   // Draw exact jigsaw slot outlines on the empty table so every piece sits flush inside its small box
   if(piecePaths.length === n*n){
@@ -1193,15 +1201,15 @@ function drawFrame(){
   }
   if(state.trayVertical){
     // Tray strip below the board (dashed separator + faint backdrop filling remaining screen height)
-    const sY = BOARD_H*state.scale+state.offsetY;
-    const sX0 = state.offsetX, sX1 = BOARD_W*state.scale+state.offsetX;
+    const sY = state.boardH*state.scale+state.offsetY;
+    const sX0 = state.offsetX, sX1 = state.boardW*state.scale+state.offsetX;
     const bottomY = canvas.height / dpr;
     ctx.fillStyle='rgba(255,255,255,.022)';
     ctx.fillRect(0, sY, canvas.width / dpr, Math.max(state.trayH*state.scale, bottomY - sY));
     ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(0, sY); ctx.lineTo(canvas.width / dpr, sY); ctx.stroke(); ctx.setLineDash([]);
   } else {
-    const tA=w2s(BOARD_W,0), tB=w2s(BOARD_W,BOARD_H);
+    const tA=w2s(state.boardW,0), tB=w2s(state.boardW,state.boardH);
     ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(tA.x,tA.y); ctx.lineTo(tB.x,tB.y); ctx.stroke(); ctx.setLineDash([]);
   }
   if(!state.imgEl) return;
@@ -1241,7 +1249,7 @@ function drawFrame(){
   }
   if(state.finished){
     // Golden glow around the completed puzzle
-    const gA=w2s(0,0), gB=w2s(BOARD_W,BOARD_H);
+    const gA=w2s(0,0), gB=w2s(state.boardW,state.boardH);
     ctx.save();
     ctx.strokeStyle='rgba(245,158,11,.85)';
     ctx.lineWidth=2.5;
@@ -1267,7 +1275,7 @@ function drawFrame(){
 }
 
 function drawPiece(p, owner, tile){
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   const row=Math.floor(p.id/n), col=p.id%n;
   const ds=(tile?tile.s:1)*state.scale;
   const sx=tile?w2s(tile.x,tile.y):w2s(p.x,p.y);
@@ -1277,7 +1285,7 @@ function drawPiece(p, owner, tile){
   const path=piecePaths[p.id];
   if(!path){ ctx.restore(); return; }
   ctx.save(); ctx.clip(path);
-  ctx.drawImage(state.imgEl,0,0,state.imgEl.width,state.imgEl.height,-col*pw,-row*ph,BOARD_W,BOARD_H);
+  ctx.drawImage(state.imgEl,0,0,state.imgEl.width,state.imgEl.height,-col*pw,-row*ph,state.boardW,state.boardH);
   ctx.restore();
   ctx.shadowColor='transparent';
   ctx.lineWidth = (p.placed ? 0.8 : 1.5) / ds;
@@ -1306,7 +1314,7 @@ canvas.addEventListener('wheel',onWheel,{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 function pieceSlot(p){
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   const sc=p.slot?p.slot.c:(p.id%n), sr=p.slot?p.slot.r:Math.floor(p.id/n);
   return {x:sc*pw, y:sr*ph, pw, ph};
 }
@@ -1314,11 +1322,11 @@ function pieceSlot(p){
 // Keep a loose piece reasonably on the reachable table (mirrors the server's
 // clamps) so pieces can never be dropped/pushed into the void and lost.
 function clampPieceXY(x,y){
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
-  const maxX=(state.trayVertical?BOARD_W:BOARD_W+TRAY_W)-pw*0.45;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
+  const maxX=(state.trayVertical?state.boardW:state.boardW+TRAY_W)-pw*0.45;
   return {
     x:Math.max(-pw*0.45, Math.min(maxX, x)),
-    y:Math.max(-ph*0.45, Math.min(BOARD_H-ph*0.3, y)),
+    y:Math.max(-ph*0.45, Math.min(state.boardH-ph*0.3, y)),
   };
 }
 
@@ -1365,7 +1373,7 @@ function onDown(e){
   const trayMap=computeTrayLayout();
   const hit=hitPiece(e.clientX,e.clientY,trayMap);
   if(hit){
-    const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+    const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
     const w=s2w(e.clientX,e.clientY);
     const tile=trayMap.get(hit.id);
     // Real pre-drag spot (server coords) kept for reverts — tray tiles are
@@ -1427,8 +1435,8 @@ function onMove(e){
     const world=s2w(e.clientX,e.clientY);
     let nx=world.x-state.dragging.gwDX, ny=world.y-state.dragging.gwDY;
     // Visual follow clamp (allow hovering over the tray strip on phones)
-    nx=Math.max(-pw*0.9, Math.min(BOARD_W+TRAY_W-pw*0.1, nx));
-    ny=Math.max(-ph*0.9, Math.min(BOARD_H+state.trayH-ph*0.1, ny));
+    nx=Math.max(-pw*0.9, Math.min(state.boardW+TRAY_W-pw*0.1, nx));
+    ny=Math.max(-ph*0.9, Math.min(state.boardH+state.trayH-ph*0.1, ny));
     p.x=nx; p.y=ny;
     if(!state.dragging.moved && Math.hypot(world.x-state.dragging.downWorldX, world.y-state.dragging.downWorldY)>pw*0.08)
       state.dragging.moved=true;
@@ -1441,13 +1449,13 @@ function onMove(e){
     const now=performance.now();
     if(!state.dragging.lastSend||now-state.dragging.lastSend>30){
       // While hovering the portrait tray strip, stream "tray glide" coordinates
-      // (x>=BOARD_W keeps the piece in the shared tray region for other devices
-      // instead of the unreachable presentation-only strip band y>BOARD_H).
+      // (x>=boardW keeps the piece in the shared tray region for other devices
+      // instead of the unreachable presentation-only strip band y>boardH).
       let sx=p.x, sy=p.y;
-      if(state.trayVertical && world.y>=BOARD_H){
-        const u=Math.max(0,Math.min(1, world.x/BOARD_W));
-        sx=BOARD_W+10+u*Math.max(1,TRAY_W-20-pw);
-        sy=Math.max(40, Math.min(BOARD_H-ph-40, p.y));
+      if(state.trayVertical && world.y>=state.boardH){
+        const u=Math.max(0,Math.min(1, world.x/state.boardW));
+        sx=state.boardW+10+u*Math.max(1,TRAY_W-20-pw);
+        sy=Math.max(40, Math.min(state.boardH-ph-40, p.y));
       }
       // drag:true tells the server this is a transient mid-drag position — it must
       // not snap/place the piece or trigger the win check until the final drop.
@@ -1499,10 +1507,10 @@ function onUp(e){
 
       // Released over the portrait tray strip → tuck the piece back into the
       // shared tray region (it re-appears as a neat tile in the strip).
-      if(state.trayVertical && releaseWorld.y>=BOARD_H){
+      if(state.trayVertical && releaseWorld.y>=state.boardH){
         p.placed=false;
-        p.x=BOARD_W+10+Math.random()*Math.max(1,TRAY_W-20-pw);
-        p.y=40+Math.random()*Math.max(1,BOARD_H-ph-80);
+        p.x=state.boardW+10+Math.random()*Math.max(1,TRAY_W-20-pw);
+        p.y=40+Math.random()*Math.max(1,state.boardH-ph-80);
         SOCKET.emit('movePiece',{id:p.id,x:p.x,y:p.y,z:p.z});
         return;
       }
@@ -1556,7 +1564,7 @@ function zoom(sx,sy,f){
 function hitPiece(sx,sy,trayMap){
   const r=canvas.getBoundingClientRect();
   const px=sx-r.left, py=sy-r.top;
-  const n=state.difficulty, pw=BOARD_W/n, ph=BOARD_H/n;
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   const tabPad=Math.min(pw,ph)*0.28;
   trayMap=trayMap||computeTrayLayout();
   const cands=[];
