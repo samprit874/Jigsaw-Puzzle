@@ -10,6 +10,13 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
   maxHttpBufferSize: 8 * 1024 * 1024, // 8 MB for photo uploads
+  // Mobile browsers routinely suspend the page (and its WebSocket) when the
+  // user switches apps. Keep the Socket.IO session recoverable so a short
+  // suspension does not look like a player leaving the room.
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 60 * 1000,
+    skipMiddlewares: true,
+  },
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -356,30 +363,45 @@ io.on('connection', (socket) => {
     broadcastState(room);
   });
 
-  socket.on('disconnect', () => {
+  // Do not remove a player immediately on disconnect. iOS/Android can pause a
+  // tab for several seconds while another app is open; Socket.IO will recover
+  // the same session when the tab becomes active again.
+  socket.on('resumeRoom', () => {
     if (!currentRoom) return;
     const room = rooms.get(currentRoom);
     if (!room) return;
-    const me = room.players[socket.id];
-    delete room.players[socket.id];
-    if (me) {
-      room.chat.push({ system: true, text: `👋 ${me.name} left.`, t: Date.now() });
-    }
-    if (Object.keys(room.players).length === 0) {
-      rooms.delete(currentRoom);
-      console.log(`[cleanup] room ${currentRoom} removed`);
-    } else {
-      // If host left, migrate host
-      if (room.hostId === socket.id) {
-        room.hostId = Object.keys(room.players)[0];
-        room.chat.push({ system: true, text: `👑 ${room.players[room.hostId].name} is now the host.`, t: Date.now() });
+    clearTimeout(socket._leaveTimer);
+    socket._leaveTimer = null;
+    if (room.players[socket.id]) broadcastState(room);
+  });
+
+  socket.on('disconnect', () => {
+    if (!currentRoom) return;
+    const roomCode = currentRoom;
+    const room = rooms.get(roomCode);
+    if (!room) return;
+
+    clearTimeout(socket._leaveTimer);
+    // Leave the player in the room during the recovery window. This also
+    // preserves the host and the in-progress puzzle if the phone suspends the
+    // browser rather than merely dropping the transport.
+    socket._leaveTimer = setTimeout(() => {
+      const liveRoom = rooms.get(roomCode);
+      if (!liveRoom || socket.connected) return;
+      const me = liveRoom.players[socket.id];
+      delete liveRoom.players[socket.id];
+      if (me) liveRoom.chat.push({ system: true, text: `👋 ${me.name} left.`, t: Date.now() });
+      if (Object.keys(liveRoom.players).length === 0) {
+        rooms.delete(roomCode);
+        console.log(`[cleanup] room ${roomCode} removed`);
+      } else {
+        if (liveRoom.hostId === socket.id) {
+          liveRoom.hostId = Object.keys(liveRoom.players)[0];
+          liveRoom.chat.push({ system: true, text: `👑 ${liveRoom.players[liveRoom.hostId].name} is now the host.`, t: Date.now() });
+        }
+        broadcastState(liveRoom);
       }
-      if (room.started && !room.finished) {
-        // keep game going
-      }
-      broadcastState(room);
-    }
-    currentRoom = null;
+    }, 2 * 60 * 60 * 1000);
   });
 });
 
