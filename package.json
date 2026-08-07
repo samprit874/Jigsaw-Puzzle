@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node tools/pathcheck.js && node tools/wintest.js && node tools/deadlocktest.js && node tools/browsim.js && node tools/mobsim.js && node tools/guestwintest.js"
+    "test": "node tools/pathcheck.js && node tools/wintest.js && node tools/deadlocktest.js && node tools/browsim.js && node tools/mobsim.js && node tools/guestwintest.js && node tools/conntest.js"
   },
   "engines": {
     "node": ">=16"

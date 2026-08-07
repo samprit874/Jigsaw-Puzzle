@@ -386,6 +386,19 @@
   }
   .toast.show { transform:translateX(-50%) translateY(0); }
 
+  /* Connection status pill — mirrors the ACTUAL socket state, so unlike a
+     timed toast it can never get stuck on screen during a reconnect loop. */
+  .conn-pill {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-70px);
+    background:var(--bg-elev-2); color:var(--text); padding:8px 14px; border-radius:999px;
+    border:1px solid var(--border); font-size:12.5px; font-weight:500; z-index:101;
+    box-shadow:var(--shadow); transition:transform .25s cubic-bezier(.2,.8,.2,1);
+    display:flex; align-items:center; gap:8px; pointer-events:none;
+  }
+  .conn-pill.show { transform:translateX(-50%) translateY(0); }
+  .conn-pill .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:conn-pulse 1s ease-in-out infinite; }
+  @keyframes conn-pulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+
   .hidden { display:none !important; }
 
   /* Mobile */
@@ -602,6 +615,7 @@
   </div>
 </div>
 
+<div class="conn-pill" id="connPill" role="status"><span class="dot"></span>Connection lost — reconnecting…</div>
 <div class="toast" id="toast">Hi</div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -776,17 +790,30 @@ $('#startBtn').addEventListener('click',()=>SOCKET.emit('startGame'));
 // Phones suspend WebSockets when another app is opened. Socket.IO already
 // retries, while the server keeps the room recoverable; explicitly nudging the
 // connection when the page becomes visible makes returning to the puzzle fast.
+// The "offline" state is a status pill bound to the real socket connection
+// rather than a timed toast: on a flaky link the socket can flap every couple
+// of seconds and each connect/disconnect used to re-arm the toast's hide
+// timer — the "Back online — reconnecting…" popup then never got the quiet
+// seconds it needed to vanish. The pill hides the instant the socket is back,
+// and the "Back online" toast fires only after a real (>2.5s) outage, so a
+// reconnect loop can no longer pin a message on screen.
+const connPill = $('#connPill');
 let hadConnection = false;
+let lastDisconnectAt = 0;
 SOCKET.on('connect',()=>{
   SOCKET.emit('resumeRoom');
-  if (hadConnection) {
+  const downtime = Date.now()-lastDisconnectAt;
+  connPill.classList.remove('show');
+  if (hadConnection && downtime > 2500) {
     toast(SOCKET.recovered ? 'Back online — puzzle restored.' : 'Back online — reconnecting to the puzzle.');
   }
   hadConnection = true;
 });
 SOCKET.on('error',msg=>toast(msg));
 SOCKET.on('disconnect',reason=>{
-  if (reason !== 'io client disconnect') toast('Connection paused — reconnecting…', 3500);
+  if (reason === 'io client disconnect') return;
+  lastDisconnectAt = Date.now();
+  connPill.classList.add('show');
 });
 window.addEventListener('online',()=>{
   if (!SOCKET.connected) SOCKET.connect();
