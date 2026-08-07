@@ -980,9 +980,8 @@ function resizeCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-// Vertical (portrait) tray strip height depends on how many loose tiles it must
-// hold — more pieces need a taller strip to stay grabbable on phones.
-function trayHeightFor(n){ return n<=3?180 : n===4?220 : n===5?260 : 300; }
+// Tray strip height in portrait mode — just enough for one row of pieces.
+function trayHeightFor(n){ return 180; }
 
 let lastViewSize={w:0,h:0,vert:null};
 
@@ -1074,9 +1073,8 @@ function w2s(x,y){
 }
 
 // Loose pieces (unplaced, in the world tray region x>=boardW) are laid out as
-// a tile grid INSIDE the portrait tray strip. Returns Map id -> {x,y,s}
-// (tile top-left in world units + tile scale factor). Landscape mode draws
-// tray pieces at their raw world coords instead, so this returns an empty map.
+// a single horizontal row INSIDE the portrait tray strip (below the board).
+// Landscape mode draws tray pieces at their raw world coords in a column on the right.
 function computeTrayLayout(){
   const map=new Map();
   if(!state.trayVertical) return map;
@@ -1085,22 +1083,19 @@ function computeTrayLayout(){
     .sort((a,b)=>(a.y-b.y)||(a.x-b.x));
   if(!list.length) return map;
   const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
-  const availW=state.boardW-2*TRAY_VERT_PAD, availH=state.trayH-2*TRAY_VERT_PAD;
-  // Pick the row count (1-3) that yields the largest readable tiles.
-  let best=null;
-  for(let rows=1; rows<=3; rows++){
-    const perRow=Math.ceil(list.length/rows);
-    const ts=Math.min(1,(availW/perRow)*0.94/pw,(availH/rows)*0.9/ph);
-    if(!best||ts>best.ts) best={rows,perRow,ts};
-  }
-  const cw=availW/best.perRow, ch=availH/best.rows;
+  const availW=state.boardW-2*TRAY_VERT_PAD;
+  // Single row layout: pieces centered vertically in the tray strip
+  const pieceScale = Math.min(1, availW / (list.length * pw * 1.06));
+  const totalW = list.length * pw * pieceScale;
+  const startX = TRAY_VERT_PAD + (availW - totalW) / 2;
+  const centerY = state.boardH + state.trayH / 2;
   list.forEach((p,i)=>{
-    const r=Math.floor(i/best.perRow), c=i%best.perRow;
-    const w=pw*best.ts, h=ph*best.ts;
+    const w = pw * pieceScale;
+    const h = ph * pieceScale;
     map.set(p.id,{
-      x:TRAY_VERT_PAD+c*cw+(cw-w)/2,
-      y:state.boardH+TRAY_VERT_PAD+r*ch+(ch-h)/2,
-      s:best.ts,
+      x: startX + i * pw * pieceScale * 1.06 + (pw * pieceScale * 1.06 - w) / 2,
+      y: centerY - h / 2,
+      s: pieceScale,
     });
   });
   return map;
