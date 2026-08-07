@@ -1173,11 +1173,15 @@ function computeTrayLayout(){
   const availH=Math.max(1, state.trayH-2*pad);
   const s=trayPieceScale();
   const tw=pw*s, th=ph*s;
-  const ROT=Math.PI/9; // ±20° — enough to look like a real pile
-  // Scatter loose pieces inside a CIRCULAR (elliptical) pile in the middle of the
-  // tray strip instead of a rigid n×n grid. The golden-angle spiral gives an even,
-  // natural-looking distribution; deterministic per-piece jitter keeps the pile
-  // STABLE (tiles never reshuffle under your fingers between frames).
+  // A genuinely TOSS pile: pieces lie at ANY angle (full 0..360°), not just a
+  // gentle ±20° tilt. Full random orientation is what makes a jigsaw pile read
+  // as "shuffled" — with only a small tilt every tile stays upright and the tray
+  // ends up looking like the solved board's neat arrangement instead of a mix.
+  // Pieces are scattered in a clumpy, overlapping mound (golden-angle spiral
+  // base + heavy deterministic jitter) so they pile ON TOP of each other like
+  // real scattered pieces, not an even tidy rosette. Everything stays STABLE per
+  // piece (seeded by id) so the pile never reshuffles under your fingers between
+  // frames, and each rotated tile is hard-clamped to stay fully inside the strip.
   const ccx=pad+availW/2;
   const ccy=state.boardH+pad+availH/2;
   // Outer radii — leave room for each tile's (rotated) half-extent so nothing clips.
@@ -1185,19 +1189,20 @@ function computeTrayLayout(){
   const m=list.length;
   const GOLDEN=Math.PI*(3-Math.sqrt(5)); // ~137.5°
   list.forEach((p,i)=>{
-    const rot=(seededRand(p.id*7+3)*2-1)*ROT;
+    // Full random orientation per piece (deterministic → stable between frames).
+    const rot=seededRand(p.id*7+3)*Math.PI*2;
     // Half-extent of the ROTATED tile — used to keep the whole tile inside the strip.
     const hx=(Math.abs(Math.cos(rot))*tw+Math.abs(Math.sin(rot))*th)/2;
     const hy=(Math.abs(Math.sin(rot))*tw+Math.abs(Math.cos(rot))*th)/2;
     const rx=Math.max(8, baseRx-hx);
     const ry=Math.max(8, baseRy-hy);
-    // Golden-angle spiral: even, natural pile (center-heavy, not a ring or line).
+    // Golden-angle spiral base, then BIG deterministic radial + angular jitter so
+    // pieces overlap and cluster irregularly — a real thrown pile, not a grid.
     const t=m<=1?0:(i+0.5)/m;
     const rad=Math.sqrt(t);
     const ang=i*GOLDEN+seededRand(p.id*11+4)*Math.PI*2;
-    // Deterministic radial + angular jitter for a more "thrown together" look.
-    const jr=rad*((seededRand(p.id*3+1)*2-1)*0.14);
-    const ja=(seededRand(p.id*5+2)*2-1)*0.18;
+    const jr=rad*((seededRand(p.id*3+1)*2-1)*0.45);   // heavy radial smear → overlap
+    const ja=(seededRand(p.id*5+2)*2-1)*1.25;          // heavy angular smear → irregular
     const rr=Math.max(0, Math.min(1, rad+jr));
     let cx=ccx+rr*rx*Math.cos(ang+ja);
     let cy=ccy+rr*ry*Math.sin(ang+ja);
