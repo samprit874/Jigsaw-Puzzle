@@ -47,8 +47,9 @@ async function main() {
   console.log('ghost join:', joinRes && joinRes.ok ? 'ok' : JSON.stringify(joinRes));
   await sleep(200);
 
-  // host sets 3x3 and starts
+  // host sets 3x3, uploads a photo (lobby now asks for an upload after create)
   [...document.querySelectorAll('#diffPick2 .opt')].find(o => o.dataset.n === '3').click();
+  window.__api.socket.emit('setImage', { dataUrl: 'data:image/jpeg;base64,AAAA', w: 480, h: 480 });
   await sleep(150);
   for (let i = 0; i < 60 && $('#startBtn').disabled; i++) await sleep(100);
   $('#startBtn').click();

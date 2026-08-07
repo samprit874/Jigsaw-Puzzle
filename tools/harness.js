@@ -108,7 +108,7 @@ function launch(url, rect, exposeExtra = '') {
   const io = require('socket.io-client');
   window.io = (opts) => io(url, opts);
 
-  const expose = ';window.__state=state;window.__tabs=tabs;window.__api={hit:hitPiece,tray:computeTrayLayout,w2s,s2w,fitView,clampPan,isPinch:()=>!!pinch,pointerCount:()=>pointers.size};'
+  const expose = ';window.__state=state;window.__tabs=tabs;window.__api={hit:hitPiece,tray:computeTrayLayout,w2s,s2w,fitView,clampPan,isPinch:()=>!!pinch,pointerCount:()=>pointers.size,socket:SOCKET};'
     + exposeExtra;
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1] + expose;
   window.eval(script);

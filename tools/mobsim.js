@@ -39,6 +39,8 @@ async function main() {
   $('#createBtn').click();
   for (let i = 0; i < 60 && $('#roomCode').textContent === 'ABCDE'; i++) await sleep(100);
   [...document.querySelectorAll('#diffPick2 .opt')].find(o => o.dataset.n === String(n0)).click();
+  // host uploads a photo (lobby now asks for an upload after create)
+  window.__api.socket.emit('setImage', { dataUrl: 'data:image/jpeg;base64,AAAA', w: 480, h: 480 });
   await sleep(150);
   for (let i = 0; i < 60 && $('#startBtn').disabled; i++) await sleep(100);
   $('#startBtn').click();

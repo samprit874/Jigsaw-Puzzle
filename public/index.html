@@ -138,16 +138,6 @@
   .opt .t { font-weight:600; font-size:13px; }
   .opt .s { font-size:11px; color:var(--text-mute); margin-top:2px; }
 
-  /* Sample images */
-  .samples { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
-  .sample {
-    aspect-ratio:1; border-radius:var(--radius-sm); overflow:hidden; cursor:pointer;
-    border:2px solid transparent; transition:all .15s; background:var(--bg);
-  }
-  .sample img { width:100%; height:100%; object-fit:cover; display:block; }
-  .sample:hover { border-color:var(--border-strong); }
-  .sample.active { border-color:var(--accent); }
-
   /* Upload zone */
   .upzone {
     margin-top:6px; border:1.5px dashed var(--border-strong); border-radius:var(--radius);
@@ -245,10 +235,11 @@
   /* Portrait layout (tray below the board): label sits at the bottom of the strip */
   .canvas-area.vertical .tray-hint { top:auto; bottom:8px; right:16px; }
 
-  /* Side panel */
+  /* Side panel — translucent so the game stays visible behind the chat */
   .side {
-    width:320px; background:var(--bg-elev); border-left:1px solid var(--border);
+    width:320px; background:rgba(19,22,29,.55); border-left:1px solid rgba(35,39,51,.55);
     display:flex; flex-direction:column; transition:transform .2s ease;
+    backdrop-filter:blur(14px) saturate(150%); -webkit-backdrop-filter:blur(14px) saturate(150%);
   }
   @media (max-width: 760px){
     .side { position:absolute; right:0; top:0; bottom:0; width:100%; transform:translateX(100%); z-index:30; box-shadow:var(--shadow-lg); }
@@ -268,13 +259,13 @@
   .plist { display:flex; flex-direction:column; gap:4px; }
   .prow {
     display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-sm);
-    background:var(--bg);
+    background:rgba(11,13,18,.45);
   }
   .pav { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:12px; flex-shrink:0; }
   .pnm { font-size:12.5px; font-weight:500; flex:1; }
   .pcnt { font-size:11px; color:var(--text-mute); font-variant-numeric:tabular-nums; }
 
-  .chat-box { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; background:var(--bg); overscroll-behavior:contain; }
+  .chat-box { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; background:transparent; overscroll-behavior:contain; }
   .msg { 
     max-width: 85%;
     padding: 8px 12px;
@@ -286,14 +277,14 @@
   }
   .msg.other {
     align-self: flex-start;
-    background: var(--bg-elev-2);
-    border: 1px solid var(--border);
+    background: rgba(25,29,39,.68);
+    border: 1px solid rgba(45,50,64,.6);
     border-bottom-left-radius: 2px;
     color: var(--text);
   }
   .msg.me {
     align-self: flex-end;
-    background: var(--accent);
+    background: rgba(245,158,11,.85);
     color: #1a1200;
     border-bottom-right-radius: 2px;
     font-weight: 500;
@@ -317,8 +308,8 @@
     max-width: 100%;
   }
 
-  .chat-in { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); background:var(--bg-elev); }
-  .chat-in input { flex:1; height:38px; padding:0 14px; border-radius:20px; background:var(--bg); border:1px solid var(--border); color:var(--text); outline:none; font-size:14px; }
+  .chat-in { display:flex; gap:8px; padding:12px; border-top:1px solid rgba(35,39,51,.55); background:rgba(19,22,29,.45); }
+  .chat-in input { flex:1; height:38px; padding:0 14px; border-radius:20px; background:rgba(11,13,18,.5); border:1px solid var(--border); color:var(--text); outline:none; font-size:14px; }
   .chat-in input:focus { border-color:var(--accent); }
   .chat-in button {
     width:38px; height:38px; border-radius:50%; border:none;
@@ -444,22 +435,6 @@
           </div>
         </div>
 
-        <div class="field">
-          <label class="field-label">Choose a photo</label>
-          <div class="samples" id="samples"></div>
-        </div>
-
-        <div class="field">
-          <label class="field-label">Or upload your own</label>
-          <div class="upzone" id="uploadZone">
-            <div class="ic">📷</div>
-            <div class="t">Click or drop an image</div>
-            <div class="s">JPG, PNG up to 6 MB</div>
-            <input type="file" id="fileInput" accept="image/*" hidden />
-          </div>
-          <div class="preview" id="previewWrap" style="display:none"><img id="previewImg" alt="preview" /></div>
-        </div>
-
         <div class="btn-row">
           <button class="btn primary block" id="createBtn">Create room</button>
         </div>
@@ -516,15 +491,11 @@
         </div>
 
         <div class="field">
-          <label class="field-label">Choose a sample photo</label>
-          <div class="samples" id="samples2"></div>
-        </div>
-
-        <div class="field">
-          <label class="field-label">Or upload your own</label>
+          <label class="field-label">Upload a photo</label>
           <div class="upzone" id="uploadZone2">
             <div class="ic">📷</div>
             <div class="t">Click or drop an image</div>
+            <div class="s">JPG, PNG up to 6 MB</div>
             <input type="file" id="fileInput2" accept="image/*" hidden />
           </div>
           <div class="preview" id="previewWrap2" style="display:none"><img id="previewImg2" alt="preview" /></div>
@@ -634,57 +605,6 @@ function toast(msg, ms=2000){
   clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'), ms);
 }
 
-// ---------- Sample images (clean, less cheesy) ----------
-function makeSample(id){
-  const c=document.createElement('canvas'); c.width=480; c.height=480;
-  const x=c.getContext('2d');
-  if (id===0){ // warm gradient / sunset
-    const g=x.createLinearGradient(0,0,0,480);
-    g.addColorStop(0,'#fb923c'); g.addColorStop(.5,'#f472b6'); g.addColorStop(1,'#7c3aed');
-    x.fillStyle=g; x.fillRect(0,0,480,480);
-    x.fillStyle='rgba(255,255,255,.3)';
-    for(let i=0;i<5;i++){ x.beginPath(); x.arc(240+(i-2)*40, 200-i*20, 40-i*5, 0, Math.PI*2); x.fill(); }
-    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
-    x.fillText('Sunset', 240, 420);
-  } else if (id===1){ // deep ocean
-    const g=x.createLinearGradient(0,0,0,480);
-    g.addColorStop(0,'#0f172a'); g.addColorStop(.5,'#1e3a8a'); g.addColorStop(1,'#0891b2');
-    x.fillStyle=g; x.fillRect(0,0,480,480);
-    x.strokeStyle='rgba(255,255,255,.15)'; x.lineWidth=2;
-    for(let i=0;i<8;i++){ x.beginPath(); x.moveTo(0,80+i*50); x.bezierCurveTo(160,40+i*50,320,120+i*50,480,80+i*50); x.stroke(); }
-    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
-    x.fillText('Ocean', 240, 420);
-  } else { // forest
-    const g=x.createLinearGradient(0,0,0,480);
-    g.addColorStop(0,'#064e3b'); g.addColorStop(.6,'#065f46'); g.addColorStop(1,'#022c22');
-    x.fillStyle=g; x.fillRect(0,0,480,480);
-    for(let i=0;i<30;i++){
-      x.fillStyle=`rgba(${20+Math.random()*40},${80+Math.random()*60},${30+Math.random()*30},${.4+Math.random()*.4})`;
-      const cx=Math.random()*480, cy=Math.random()*480, r=20+Math.random()*40;
-      x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.fill();
-    }
-    x.fillStyle='rgba(255,255,255,.85)'; x.font='600 28px Inter, sans-serif'; x.textAlign='center';
-    x.fillText('Forest', 240, 420);
-  }
-  return c.toDataURL('image/jpeg', 0.82);
-}
-const SAMPLES=[makeSample(0),makeSample(1),makeSample(2)];
-
-function renderSamples(container, onClick){
-  container.innerHTML='';
-  SAMPLES.forEach((url,i)=>{
-    const d=document.createElement('div');
-    d.className='sample'+(i===0?' active':'');
-    const im=document.createElement('img'); im.src=url;
-    d.appendChild(im);
-    d.addEventListener('click',()=>{
-      container.querySelectorAll('.sample').forEach(x=>x.classList.remove('active'));
-      d.classList.add('active'); onClick(url);
-    });
-    container.appendChild(d);
-  });
-}
-
 // ---------- Segmented tabs ----------
 $$('.seg').forEach(seg=>{
   seg.querySelectorAll('button').forEach(b=>{
@@ -701,7 +621,7 @@ $$('.seg').forEach(seg=>{
 // ---------- State ----------
 const state={
   selfId:null, inRoom:false, room:null, difficulty:4,
-  imageUrl:SAMPLES[0], imgEl:null, isHost:false, started:false,
+  imageUrl:null, imgEl:null, isHost:false, started:false,
   scale:1, offsetX:0, offsetY:0,
   fitScale:1, minScale:.15, maxScale:4,
   trayVertical:false, trayH:TRAY_VERT_H,
@@ -738,14 +658,6 @@ function setupUpload(zone,input,img,wrap,onPick){
     r.readAsDataURL(f);
   }
 }
-function pickSample(url){
-  state.imageUrl=url;
-  $('#previewImg').src=url; $('#previewWrap').style.display='block';
-}
-renderSamples($('#samples'),pickSample);
-$('#previewImg').src=SAMPLES[0]; $('#previewWrap').style.display='block';
-setupUpload($('#uploadZone'),$('#fileInput'),$('#previewImg'),$('#previewWrap'),pickSample);
-
 // Difficulty pickers
 function setupDifficulty(sel, init){
   $$(sel+' .opt').forEach(d=>{
@@ -786,15 +698,6 @@ $('#createBtn').addEventListener('click',()=>{
     if(!res.ok) return toast('Could not create room.');
     state.selfId=res.selfId;
     SOCKET.emit('updateName',{name});
-    const im=new Image();
-    im.onload=()=>{
-      let w=im.width,h=im.height,M=1200;
-      if(w>M||h>M){const s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
-      const c=document.createElement('canvas'); c.width=w; c.height=h;
-      c.getContext('2d').drawImage(im,0,0,w,h);
-      SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
-    };
-    im.src=state.imageUrl;
     SOCKET.emit('setDifficulty',{n:state.difficulty});
     enterLobby(res.code);
   });
@@ -835,19 +738,6 @@ $('#copyLinkBtn').addEventListener('click',()=>{
 $('#myName').addEventListener('change',()=>SOCKET.emit('updateName',{name:$('#myName').value}));
 $('#leaveBtn').addEventListener('click',()=>location.reload());
 
-renderSamples($('#samples2'),url=>{
-  state.imageUrl=url;
-  $('#previewImg2').src=url; $('#previewWrap2').style.display='block';
-  const im=new Image();
-  im.onload=()=>{
-    let w=im.width,h=im.height,M=1200;
-    if(w>M||h>M){const s=M/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
-    const c=document.createElement('canvas'); c.width=w; c.height=h;
-    c.getContext('2d').drawImage(im,0,0,w,h);
-    SOCKET.emit('setImage',{dataUrl:c.toDataURL('image/jpeg',.85),w,h});
-  };
-  im.src=url;
-});
 setupUpload($('#uploadZone2'),$('#fileInput2'),$('#previewImg2'),$('#previewWrap2'),url=>{
   const im=new Image();
   im.onload=()=>{
@@ -967,7 +857,7 @@ function renderLobby(room){
     $('#guestWait').classList.add('hidden');
     $$('#diffPick2 .opt').forEach(o=>o.classList.toggle('active', parseInt(o.dataset.n)===room.difficulty));
     $('#startBtn').disabled=!room.hasImage;
-    $('#startBtn').textContent=room.hasImage?'Start game':'Upload or pick a photo first';
+    $('#startBtn').textContent=room.hasImage?'Start game':'Upload a photo first';
     $('#shuffleBtn').style.display=''; $('#hintBtn').style.display='';
   } else {
     $('#hostControls').classList.add('hidden');
@@ -1026,7 +916,7 @@ function startGame(room){
     }));
   };
   if(state.imageUrl&&state.isHost){ imgEl.src=state.imageUrl; }
-  else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>imgEl.src=d); else toast('Failed to load image.'); });
+  else fetch('/img/'+room.code).then(r=>{ if(r.ok) r.text().then(d=>{ imgEl.src=d; state.imageUrl=d; }); else toast('Failed to load image.'); });
 }
 function stopGame(){
   state.started=false; state.finished=false; state.pieces=[];
