@@ -980,8 +980,13 @@ function resizeCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-// Tray strip height in portrait mode — just enough for one row of pieces.
-function trayHeightFor(n){ return 180; }
+// Tray strip height in portrait — tall enough for a packed pile of BIG tiles
+// (n rows × n cols of at least ~60% board-size pieces), so tiles never spill
+// out of the strip even on short phone screens.
+function trayHeightFor(n){
+  const ph=state.boardH/n;
+  return Math.max(220, Math.ceil(ph*n*0.6)+2*TRAY_VERT_PAD);
+}
 
 let lastViewSize={w:0,h:0,vert:null};
 
@@ -1072,32 +1077,60 @@ function w2s(x,y){
   return {x:x*state.scale+state.offsetX, y:y*state.scale+state.offsetY};
 }
 
-// Loose pieces (unplaced, in the world tray region x>=boardW) are laid out as
-// a single horizontal row INSIDE the portrait tray strip (below the board).
-// Landscape mode draws tray pieces at their raw world coords in a column on the right.
+// Deterministic pseudo-random 0..1 from an integer seed — the tray pile is
+// scattered but STABLE: tiles keep their spot between frames and never
+// reshuffle when another piece is placed or tucked back in.
+function seededRand(seed){
+  const x=Math.sin(seed*127.1+311.7)*43758.5453;
+  return x-Math.floor(x);
+}
+
+// Tray tile size as a multiple of board-piece size. Tiles are kept as big as a
+// phone user can actually see (about a quarter of the board width) while the
+// whole pile still fits packed inside the strip (n rows × n cols).
+function trayPieceScale(){
+  const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
+  const pad=TRAY_VERT_PAD;
+  const availW=Math.max(1, state.boardW-2*pad);
+  const availH=Math.max(1, state.trayH-2*pad);
+  const cell=Math.min(availW/n, availH/n);
+  return Math.max(0.6, Math.min(1.4, cell/Math.max(pw,ph)));
+}
+
+// Loose pieces (unplaced, in the world tray region x>=boardW) are gathered into
+// a random-looking PILE inside the portrait tray strip (below the board): each
+// piece keeps a stable pseudo-random cell + rotation + depth, so the pile looks
+// scattered but never shuffles under your fingers. Tiles may overlap a little —
+// grabbing always lifts the topmost (highest z) piece. Landscape mode keeps the
+// raw world coords (a column on the right).
 function computeTrayLayout(){
   const map=new Map();
   if(!state.trayVertical) return map;
   const list=state.pieces
-    .filter(p=>!p.placed && p.x>=state.boardW && state.dragging?.id!==p.id)
-    .sort((a,b)=>(a.y-b.y)||(a.x-b.x));
+    .filter(p=>!p.placed && p.x>=state.boardW && state.dragging?.id!==p.id);
   if(!list.length) return map;
   const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
-  const availW=state.boardW-2*TRAY_VERT_PAD;
-  // Single row layout: pieces centered vertically in the tray strip
-  const pieceScale = Math.min(1, availW / (list.length * pw * 1.06));
-  const totalW = list.length * pw * pieceScale;
-  const startX = TRAY_VERT_PAD + (availW - totalW) / 2;
-  const centerY = state.boardH + state.trayH / 2;
-  list.forEach((p,i)=>{
-    const w = pw * pieceScale;
-    const h = ph * pieceScale;
-    map.set(p.id,{
-      x: startX + i * pw * pieceScale * 1.06 + (pw * pieceScale * 1.06 - w) / 2,
-      y: centerY - h / 2,
-      s: pieceScale,
-    });
-  });
+  const pad=TRAY_VERT_PAD;
+  const availW=state.boardW-2*pad;
+  const availH=Math.max(1, state.trayH-2*pad);
+  const s=trayPieceScale();
+  const tw=pw*s, th=ph*s;
+  const cellW=availW/n, cellH=availH/n;
+  const jx=Math.max(0,(cellW-tw)*0.45);
+  const jy=Math.max(0,(cellH-th)*0.45);
+  const ROT=Math.PI/9; // ±20° — enough to look like a real pile
+  for(const p of list){
+    const col=p.id%n, row=Math.floor(p.id/n);
+    const rot=(seededRand(p.id*7+3)*2-1)*ROT;
+    const cx=pad+(col+0.5)*cellW+(seededRand(p.id*3+1)*2-1)*jx;
+    const cy=state.boardH+pad+(row+0.5)*cellH+(seededRand(p.id*5+2)*2-1)*jy;
+    // Clamp so the ROTATED tile stays fully inside the strip
+    const hx=(Math.abs(Math.cos(rot))*tw+Math.abs(Math.sin(rot))*th)/2;
+    const hy=(Math.abs(Math.sin(rot))*tw+Math.abs(Math.cos(rot))*th)/2;
+    const px=Math.max(pad+hx, Math.min(pad+availW-hx, cx));
+    const py=Math.max(state.boardH+pad+hy, Math.min(state.boardH+pad+availH-hy, cy));
+    map.set(p.id,{ x:px-tw/2, y:py-th/2, s, r:rot });
+  }
   return map;
 }
 
@@ -1217,6 +1250,8 @@ function drawFrame(){
     (t?trayList:boardList).push([p,t]);
   }
   boardList.sort((a,b)=>(a[0].z||0)-(b[0].z||0));
+  // Pile: lower z underneath, higher z on top
+  trayList.sort((a,b)=>(a[0].z||0)-(b[0].z||0));
   // Board pieces first, tray tiles on top, dragged piece topmost.
   for(const [p,t] of boardList) drawPiece(p, moverColor(p.lastMover), null);
   for(const [p,t] of trayList) drawPiece(p, moverColor(p.lastMover), t);
@@ -1276,6 +1311,13 @@ function drawPiece(p, owner, tile){
   const sx=tile?w2s(tile.x,tile.y):w2s(p.x,p.y);
   ctx.save();
   ctx.translate(sx.x,sx.y); ctx.scale(ds,ds);
+  if(tile && tile.r){
+    // Pile tiles are rotated for the scattered look — presentation only; the
+    // piece snaps straight (and to board size) the moment it's picked up.
+    ctx.translate(pw/2, ph/2);
+    ctx.rotate(tile.r);
+    ctx.translate(-pw/2, -ph/2);
+  }
   if(!p.placed){ ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4; }
   const path=piecePaths[p.id];
   if(!path){ ctx.restore(); return; }
@@ -1378,8 +1420,17 @@ function onDown(e){
     if(tile){
       // Lift: keep the finger on the same relative point of the piece as it
       // grows from shrunk tile to full size (no jump out from under the finger).
-      const fx=Math.max(0,Math.min(1,(w.x-tile.x)/(pw*tile.s)));
-      const fy=Math.max(0,Math.min(1,(w.y-tile.y)/(ph*tile.s)));
+      // Rotated tiles are un-rotated into the tile's frame first.
+      let fx, fy;
+      if(tile.r){
+        const cos=Math.cos(-tile.r), sin=Math.sin(-tile.r);
+        const dx=w.x-(tile.x+pw*tile.s/2), dy=w.y-(tile.y+ph*tile.s/2);
+        fx=Math.max(0,Math.min(1,0.5+(dx*cos-dy*sin)/(pw*tile.s)));
+        fy=Math.max(0,Math.min(1,0.5+(dx*sin+dy*cos)/(ph*tile.s)));
+      } else {
+        fx=Math.max(0,Math.min(1,(w.x-tile.x)/(pw*tile.s)));
+        fy=Math.max(0,Math.min(1,(w.y-tile.y)/(ph*tile.s)));
+      }
       hit.x=tile.x; hit.y=tile.y;
       gwDX=fx*pw; gwDY=fy*ph;
     } else {
@@ -1562,24 +1613,34 @@ function hitPiece(sx,sy,trayMap){
   const n=state.difficulty, pw=state.boardW/n, ph=state.boardH/n;
   const tabPad=Math.min(pw,ph)*0.28;
   trayMap=trayMap||computeTrayLayout();
-  const cands=[];
+  // Tray tiles sit on top of the strip → test them first. Both piles are tested
+  // topmost-first (highest z) so you always pick up the piece ON TOP of the pile.
+  const trayCands=[], boardCands=[];
   for(const p of state.pieces){
     const t=trayMap.get(p.id);
-    if(t) cands.push({p, ox:t.x, oy:t.y, ds:t.s*state.scale, tray:true});
+    if(t) trayCands.push({p, ox:t.x, oy:t.y, ds:t.s*state.scale, tray:true, r:t.r});
+    else if(state.dragging?.id!==p.id) boardCands.push({p, ox:p.x, oy:p.y, ds:state.scale, tray:false});
   }
-  // Tray tiles sit on top of the strip → test them first, then board pieces
-  // topmost-first (z). The actively-dragged piece is excluded (it's in hand).
-  const sorted=state.pieces.filter(p=>!trayMap.has(p.id) && state.dragging?.id!==p.id).sort((a,b)=>(b.z||0)-(a.z||0));
-  for(const p of sorted) cands.push({p, ox:p.x, oy:p.y, ds:state.scale, tray:false});
+  trayCands.sort((a,b)=>(b.p.z||0)-(a.p.z||0));
+  boardCands.sort((a,b)=>(b.p.z||0)-(a.p.z||0));
+  const cands=trayCands.concat(boardCands);
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
   for(const c of cands){
     const path=piecePaths[c.p.id]; if(!path) continue;
     const o=w2s(c.ox,c.oy);
     const lx=(px-o.x)/c.ds, ly=(py-o.y)/c.ds;
-    if(lx<-tabPad||ly<-tabPad||lx>pw+tabPad||ly>ph+tabPad) continue;
+    let tx=lx, ty=ly;
+    if(c.r){
+      // Rotated tile: cull against the max bounding radius, then test the point
+      // in the tile's un-rotated frame so the jigsaw outline matches what's drawn.
+      const half=Math.max(pw,ph)*0.5*Math.SQRT2+tabPad;
+      if(Math.abs(lx-pw/2)>half||Math.abs(ly-ph/2)>half) continue;
+      const dx=lx-pw/2, dy=ly-ph/2, cos=Math.cos(-c.r), sin=Math.sin(-c.r);
+      tx=pw/2+dx*cos-dy*sin; ty=ph/2+dx*sin+dy*cos;
+    } else if(lx<-tabPad||ly<-tabPad||lx>pw+tabPad||ly>ph+tabPad) continue;
     let ok=false;
-    try{ ok=ctx.isPointInPath(path, lx, ly, 'nonzero'); }catch(e){}
+    try{ ok=ctx.isPointInPath(path, tx, ty, 'nonzero'); }catch(e){}
     if(ok){ ctx.restore(); return c.p; }
   }
   ctx.restore();

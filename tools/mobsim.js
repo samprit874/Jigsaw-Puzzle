@@ -51,13 +51,17 @@ async function main() {
   check('tray strip height set', state().trayH >= ({3:180,4:220,5:260,6:300})[n0], `trayH=${state().trayH}`);
   check('pieces present', state().pieces.length === TOTAL);
 
-  // --- 1. tray tiles stay inside the strip ---
+  // --- 1. tray tiles stay inside the strip (rotated bounding box) ---
   let tray = window.__api.tray();
   check(`all ${TOTAL} loose pieces offered as tray tiles`, tray.size === TOTAL, `tiles=${tray.size}`);
   let tilesInside = true;
   for (const [id, t] of tray) {
-    const inside = t.x >= 0 && t.x + pw * t.s <= 1000 &&
-                   t.y >= 1000 && t.y + pw * t.s <= 1000 + state().trayH;
+    const rot = t.r || 0;
+    const hw = (Math.abs(Math.cos(rot)) * pw + Math.abs(Math.sin(rot)) * pw) * t.s / 2;
+    const hh = (Math.abs(Math.sin(rot)) * pw + Math.abs(Math.cos(rot)) * pw) * t.s / 2;
+    const cx = t.x + pw * t.s / 2, cy = t.y + pw * t.s / 2;
+    const inside = cx - hw >= 0 && cx + hw <= 1000 &&
+                   cy - hh >= 1000 && cy + hh <= 1000 + state().trayH;
     if (!inside) { tilesInside = false; console.log('    tile outside strip:', id, JSON.stringify(t)); }
   }
   check('every tray tile fully inside the strip', tilesInside);
